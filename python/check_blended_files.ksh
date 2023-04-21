@@ -1,5 +1,6 @@
 #!/bin/ksh
 
+module load gsl
 module load nco
 module load ncview
 
