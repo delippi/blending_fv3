@@ -106,11 +106,10 @@ if blend:
         glbT = np.transpose(glb)        # (1820, 1093, 65)
         regT = np.transpose(reg)        # (1820, 1093, 65, 1)
 
-
-        nlon_start=int(nbdy/2)-1  # python indicies start at 0; subtract 1
-        nlon_end = int(nlon+nbdy/2)-1
-        nlat_start=int(nbdy/2)-1
-        nlat_end = int(nlat+nbdy/2)-1
+        nlon_start=int(nbdy/2)
+        nlon_end = int(nlon+nbdy/2)
+        nlat_start=int(nbdy/2)
+        nlat_end = int(nlat+nbdy/2)
 
         var_work[nlon_start:nlon_end, nlat_start:nlat_end, :] = glbT - regT
         field_work = var_work.reshape((nlon+nbdy)*(nlat+nbdy), nlev, order="F") #order="F" (FORTRAN)
