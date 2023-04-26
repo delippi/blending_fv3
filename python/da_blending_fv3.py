@@ -25,7 +25,9 @@ blend = True
 if blend:
     print("Starting blending")
 
-#   GDAS EnKF file chgres_cube-ed from gaussian grid to ESG grid.
+    # GDAS EnKF file chgres_cube-ed from gaussian grid to ESG grid.
+    # There is one more step to make sure the winds are on the same
+    # grid staggering and have the same orientation as the RRFS winds.
     glb_fg = "./bg"
     glb_fg_nc = Dataset(glb_fg)
     glb_nlon = glb_fg_nc.dimensions["lon"].size  # 1820   (lonp=1821)
@@ -33,18 +35,26 @@ if blend:
     glb_nlev = glb_fg_nc.dimensions["lev"].size  # 65     (levp=66)
     glb_Dx = 3.0
 
-#   RRFS EnKF restart file on ESG grid.
-    print("copying file...")
+    # RRFS EnKF restart file fv_core.res.tile1 on ESG grid.
+    print("copying core file...")
     shutil.copyfile("./fg", "./fg_blend.nc")
     print("copy done.")
     reg_fg = "./fg_blend.nc"
     # Open the blended file for updating the required vars (use a copy of the regional file)
     reg_fg_nc = Dataset(reg_fg, mode="a")
-
     nlon = reg_fg_nc.dimensions["xaxis_1"].size  # 1820   (xaxis_2=1821)
     nlat = reg_fg_nc.dimensions["yaxis_2"].size  # 1092   (yaxis_1=1093)
     nlev = reg_fg_nc.dimensions["zaxis_1"].size  # 65
     Dx = 3.0
+
+    if "sphum" in vars_fg:
+        # RRFS EnKF restart file fv_tracer.res.tile1 on ESG grid.
+        print("copying tracer file...")
+        shutil.copyfile("./fg_t", "./fg_blend_t.nc")  # tracers (sphum)
+        print("copy done.")
+        reg_fg_t = "./fg_blend_t.nc"
+        # Open the blended file for updating the required vars (use a copy of the regional file)
+        reg_fg_t_nc = Dataset(reg_fg_t, mode="a")
 
     # Check matching grids
     if (glb_nlon != nlon or glb_nlat != nlat or glb_nlev != nlev or glb_Dx != Dx):
@@ -63,7 +73,7 @@ if blend:
     print(f"  NLEV                          : {nlev}")
     print(f"  eps                           : {eps}")
     print(f"Output")
-    print(f"  Blended background file       : {reg_fg}")
+    print(f"  Blended background file(s)    : {reg_fg}/{reg_fg_t}")
 
     # print(raymond.raymond.__doc__)
     # print(raymond.impfila.__doc__)
@@ -76,10 +86,17 @@ if blend:
         i = vars_fg.index(var_fg)
         print(f"Blending backgrounds for {var_fg}/{var_bg}")
 
-        dim = len(np.shape(reg_fg_nc[var_fg]))-1
+        if var_fg == "sphum":
+            reg_nc = reg_fg_t_nc
+            glb_nc = glb_fg_nc
+        else:
+            reg_nc = reg_fg_nc
+            glb_nc = glb_fg_nc
+
+        dim = len(np.shape(reg_nc[var_fg]))-1
         if dim == 2:  # 2D vars
-            glb = np.float64(glb_fg_nc[var_bg][:, :])     # (1093 1820)
-            reg = np.float64(reg_fg_nc[var_fg][:, :, :])  # (1, 1093, 1820)
+            glb = np.float64(glb_nc[var_bg][:, :])     # (1093 1820)
+            reg = np.float64(reg_nc[var_fg][:, :, :])  # (1, 1093, 1820)
             ntim = np.shape(reg)[0]
             nlat = np.shape(reg)[1]
             nlon = np.shape(reg)[2]
@@ -90,8 +107,8 @@ if blend:
             var_work = np.zeros(shape=((nlon+nbdy), (nlat+nbdy), 1), dtype=np.float64)
             field_work = np.zeros(shape=((nlon+nbdy)*(nlat+nbdy)), dtype=np.float64)
         if dim == 3:  # 3D vars
-            glb = np.float64(glb_fg_nc[var_bg][:, :, :])     # (65, 1093, 1820)
-            reg = np.float64(reg_fg_nc[var_fg][:, :, :, :])  # (1, 65, 1093, 1820)
+            glb = np.float64(glb_nc[var_bg][:, :, :])     # (65, 1093, 1820)
+            reg = np.float64(reg_nc[var_fg][:, :, :, :])  # (1, 65, 1093, 1820)
             ntim = np.shape(reg)[0]
             nlev = np.shape(reg)[1]
             nlat = np.shape(reg)[2]
@@ -124,15 +141,15 @@ if blend:
 
         # Overwrite blended fields to blended file.
         if dim == 2:  # 2D vars
-            reg_fg_nc.variables[var_fg][:, :, :] = var_out
+            reg_nc.variables[var_fg][:, :, :] = var_out
         if dim == 3:  # 3D vars
-            reg_fg_nc.variables[var_fg][:, :, :, :] = var_out
+            reg_nc.variables[var_fg][:, :, :, :] = var_out
 
     # Close nc files
-    reg_fg_nc.close()  # blended file
-    glb_fg_nc.close()
+    reg_nc.close()  # blended file
+    glb_nc.close()
 
-    print("Step 1 blending finished successfully.")
+    print("Blending finished successfully.")
 
 tictoc.toc(tic, "Done. ")
 exit(0)
