@@ -1,12 +1,9 @@
 import tictoc
 tic = tictoc.tic()
 import numpy as np
-import os as _os
 import emcpy.utils.dateutils as _dateutils
 from netCDF4 import Dataset
 import raymond
-import shutil
-import pdb
 
 model = "RRFS"
 host = "GDAS"
@@ -36,9 +33,6 @@ if blend:
     glb_Dx = 3.0
 
     # RRFS EnKF restart file fv_core.res.tile1 on ESG grid.
-    print("copying core file...")
-    shutil.copyfile("./fg", "./fg_blend.nc")
-    print("copy done.")
     reg_fg = "./fg_blend.nc"
     # Open the blended file for updating the required vars (use a copy of the regional file)
     reg_fg_nc = Dataset(reg_fg, mode="a")
@@ -49,9 +43,6 @@ if blend:
 
     if "sphum" in vars_fg:
         # RRFS EnKF restart file fv_tracer.res.tile1 on ESG grid.
-        print("copying tracer file...")
-        shutil.copyfile("./fg_t", "./fg_blend_t.nc")  # tracers (sphum)
-        print("copy done.")
         reg_fg_t = "./fg_blend_t.nc"
         # Open the blended file for updating the required vars (use a copy of the regional file)
         reg_fg_t_nc = Dataset(reg_fg_t, mode="a")
