@@ -20,6 +20,7 @@ vars_bg = ["u_s", "v_w", "t", "sphum", "delp"]
 nbdy = 40  # 20 on each side
 blend = True
 
+
 def init_blending():
     print("Starting blending")
 
@@ -42,11 +43,10 @@ def init_blending():
     nlev = reg_fg_nc.dimensions["zaxis_1"].size  # 65
     Dx = 3.0
 
-    if "sphum" in vars_fg:
-        # RRFS EnKF restart file fv_tracer.res.tile1 on ESG grid.
-        reg_fg_t = "./fg_blend_t.nc"
-        # Open the blended file for updating the required vars (use a copy of the regional file)
-        reg_fg_t_nc = Dataset(reg_fg_t, mode="a")
+    # RRFS EnKF restart file fv_tracer.res.tile1 on ESG grid.
+    reg_fg_t = "./fg_blend_t.nc"
+    # Open the blended file for updating the required vars (use a copy of the regional file)
+    reg_fg_t_nc = Dataset(reg_fg_t, mode="a")
 
     # Check matching grids
     if (glb_nlon != nlon or glb_nlat != nlat or glb_nlev != nlev or glb_Dx != Dx):
@@ -74,83 +74,78 @@ def init_blending():
     # print(raymond.rhsini.__doc__)
     return reg_fg_nc, reg_fg_t_nc, glb_fg_nc, eps
 
-# Step 1. blend.
-def da_blending(var_fg, q):
-    #for (var_fg, var_bg) in zip(vars_fg, vars_bg):
-        i = vars_fg.index(var_fg)
-        var_bg = vars_bg[i]
-        print(f"Blending backgrounds for {var_fg}/{var_bg}")
 
-        if var_fg == "sphum":
-            reg_nc = reg_fg_t_nc
-            glb_nc = glb_fg_nc
-        else:
-            reg_nc = reg_fg_nc
-            glb_nc = glb_fg_nc
+def da_blending(var_fg):
+    i = vars_fg.index(var_fg)
+    var_bg = vars_bg[i]
+    print(f"Blending backgrounds for {var_fg}/{var_bg}")
 
-        dim = len(np.shape(reg_nc[var_fg]))-1
-        if dim == 2:  # 2D vars
-            glb = np.float64(glb_nc[var_bg][:, :])     # (1093 1820)
-            reg = np.float64(reg_nc[var_fg][:, :, :])  # (1, 1093, 1820)
-            ntim = np.shape(reg)[0]
-            nlat = np.shape(reg)[1]
-            nlon = np.shape(reg)[2]
-            nlev = 1
-            glb = np.reshape(glb, [ntim, nlat, nlon])  # add time dim bc missing from chgres
-            var_out = np.zeros(shape=(nlon, nlat, 1), dtype=np.float64)
-            field = np.zeros(shape=(nlon*nlat), dtype=np.float64)
-            var_work = np.zeros(shape=((nlon+nbdy), (nlat+nbdy), 1), dtype=np.float64)
-            field_work = np.zeros(shape=((nlon+nbdy)*(nlat+nbdy)), dtype=np.float64)
-        if dim == 3:  # 3D vars
-            glb = np.float64(glb_nc[var_bg][:, :, :])     # (65, 1093, 1820)
-            reg = np.float64(reg_nc[var_fg][:, :, :, :])  # (1, 65, 1093, 1820)
-            ntim = np.shape(reg)[0]
-            nlev = np.shape(reg)[1]
-            nlat = np.shape(reg)[2]
-            nlon = np.shape(reg)[3]
-            glb = np.reshape(glb, [ntim, nlev, nlat, nlon])  # add time dim bc missing from chgres
-            var_out = np.zeros(shape=(nlon, nlat, nlev, 1), dtype=np.float64)
-            field = np.zeros(shape=(nlon*nlat, nlev), dtype=np.float64)
-            var_work = np.zeros(shape=((nlon+nbdy), (nlat+nbdy), nlev, 1), dtype=np.float64)
-            field_work = np.zeros(shape=((nlon+nbdy)*(nlat+nbdy), nlev), dtype=np.float64)
-        glbT = np.transpose(glb)        # (1820, 1093, 65)
-        regT = np.transpose(reg)        # (1820, 1093, 65, 1)
+    if var_fg == "sphum":
+        reg_nc = reg_fg_t_nc
+        glb_nc = glb_fg_nc
+    else:
+        reg_nc = reg_fg_nc
+        glb_nc = glb_fg_nc
 
-        nlon_start = int(nbdy/2)
-        nlon_end = int(nlon+nbdy/2)
-        nlat_start = int(nbdy/2)
-        nlat_end = int(nlat+nbdy/2)
+    dim = len(np.shape(reg_nc[var_fg]))-1
+    if dim == 2:  # 2D vars
+        glb = np.float64(glb_nc[var_bg][:, :])     # (1093 1820)
+        reg = np.float64(reg_nc[var_fg][:, :, :])  # (1, 1093, 1820)
+        ntim = np.shape(reg)[0]
+        nlat = np.shape(reg)[1]
+        nlon = np.shape(reg)[2]
+        nlev = 1
+        glb = np.reshape(glb, [ntim, nlat, nlon])  # add time dim bc missing from chgres
+        var_out = np.zeros(shape=(nlon, nlat, 1), dtype=np.float64)
+        field = np.zeros(shape=(nlon*nlat), dtype=np.float64)
+        var_work = np.zeros(shape=((nlon+nbdy), (nlat+nbdy), 1), dtype=np.float64)
+        field_work = np.zeros(shape=((nlon+nbdy)*(nlat+nbdy)), dtype=np.float64)
+    if dim == 3:  # 3D vars
+        glb = np.float64(glb_nc[var_bg][:, :, :])     # (65, 1093, 1820)
+        reg = np.float64(reg_nc[var_fg][:, :, :, :])  # (1, 65, 1093, 1820)
+        ntim = np.shape(reg)[0]
+        nlev = np.shape(reg)[1]
+        nlat = np.shape(reg)[2]
+        nlon = np.shape(reg)[3]
+        glb = np.reshape(glb, [ntim, nlev, nlat, nlon])  # add time dim bc missing from chgres
+        var_out = np.zeros(shape=(nlon, nlat, nlev, 1), dtype=np.float64)
+        field = np.zeros(shape=(nlon*nlat, nlev), dtype=np.float64)
+        var_work = np.zeros(shape=((nlon+nbdy), (nlat+nbdy), nlev, 1), dtype=np.float64)
+        field_work = np.zeros(shape=((nlon+nbdy)*(nlat+nbdy), nlev), dtype=np.float64)
+    glbT = np.transpose(glb)        # (1820, 1093, 65)
+    regT = np.transpose(reg)        # (1820, 1093, 65, 1)
 
-        var_work[nlon_start:nlon_end, nlat_start:nlat_end, :] = glbT - regT
-        field_work = var_work.reshape((nlon+nbdy)*(nlat+nbdy), nlev, order="F")  # order="F" (FORTRAN)
-        field_work = raymond.raymond(field_work, nlon+nbdy, nlat+nbdy, eps, nlev)
-        var_work = field_work.reshape(nlon+nbdy, nlat+nbdy, nlev, order="F")
-        var_out = var_work[nlon_start:nlon_end, nlat_start:nlat_end, :]
-        if dim == 2:  # 2D vars
-            var_out = var_out[:, :, 0] + regT[:, :, 0]
-            var_out = np.reshape(var_out, [nlon, nlat, 1])  # add the time ("1") dimension back
-        if dim == 3:  # 3D vars
-            var_out = var_out + regT[:, :, :, 0]
-            var_out = np.reshape(var_out, [nlon, nlat, nlev, 1])  # add the time ("1") dimension back
-        var_out = np.transpose(var_out)  # (1, 50, 834, 954)
-        q.put(var_out, var_fg)  # add var_out to the queue
-        return var_out, var_fg
+    nlon_start = int(nbdy/2)
+    nlon_end = int(nlon+nbdy/2)
+    nlat_start = int(nbdy/2)
+    nlat_end = int(nlat+nbdy/2)
 
+    var_work[nlon_start:nlon_end, nlat_start:nlat_end, :] = glbT - regT
+    field_work = var_work.reshape((nlon+nbdy)*(nlat+nbdy), nlev, order="F")  # order="F" (FORTRAN)
+    field_work = raymond.raymond(field_work, nlon+nbdy, nlat+nbdy, eps, nlev)
+    var_work = field_work.reshape(nlon+nbdy, nlat+nbdy, nlev, order="F")
+    var_out = var_work[nlon_start:nlon_end, nlat_start:nlat_end, :]
+    if dim == 2:  # 2D vars
+        var_out = var_out[:, :, 0] + regT[:, :, 0]
+        var_out = np.reshape(var_out, [nlon, nlat, 1])  # add the time ("1") dimension back
+    if dim == 3:  # 3D vars
+        var_out = var_out + regT[:, :, :, 0]
+        var_out = np.reshape(var_out, [nlon, nlat, nlev, 1])  # add the time ("1") dimension back
+    var_out = np.transpose(var_out)  # (1, 50, 834, 954)
+    return var_out, var_fg
 
 
 if __name__ == '__main__':
-    manager = mp.Manager()
-    q = manager.Queue()
     reg_fg_nc, reg_fg_t_nc, glb_fg_nc, eps = init_blending()
     pool = mp.Pool(len(vars_fg))
 
-    # fire off da_blending
+    # Fire off da_blending
     jobs = []
     for var_fg in vars_fg:
-        job = pool.apply_async(da_blending, (var_fg, q))
+        job = pool.apply_async(da_blending, (var_fg,))
         jobs.append(job)
 
-    # collect results from the da_blending workers through the pool result queue
+    # Collect results from the da_blending workers
     for job in jobs:
         var_out, var_fg = job.get()
         if var_fg == "sphum":
@@ -168,8 +163,8 @@ if __name__ == '__main__':
     pool.close()
     pool.join()
     # Close nc files
-    reg_fg_t_nc.close()  # blended file
-    reg_fg_nc.close()    # blended file
+    reg_fg_t_nc.close()  # blended file (for sphum)
+    reg_fg_nc.close()    # blended file (all other variables)
     glb_fg_nc.close()
     print("Blending finished successfully.")
 
