@@ -1,7 +1,6 @@
 import tictoc
 tic = tictoc.tic()
 import numpy as np
-import emcpy.utils.dateutils as _dateutils
 from netCDF4 import Dataset
 import raymond
 import multiprocessing as mp
@@ -10,15 +9,13 @@ model = "RRFS"
 host = "GDAS"
 Lx = 960.0
 pi = np.pi
+nbdy = 40  # 20 on each side
 
 # Eventually, these two lists should be the same. There is still some technical work
 # to be done to make sure the chgres_cube output (coldstart) matches the same grid
 # staggering as the RRFS restart (warm start).
 vars_fg = ["u", "v", "T", "sphum", "delp"]
 vars_bg = ["u_s", "v_w", "t", "sphum", "delp"]
-
-nbdy = 40  # 20 on each side
-blend = True
 
 
 def init_blending():

@@ -1,7 +1,6 @@
 import tictoc
 tic = tictoc.tic()
 import numpy as np
-import emcpy.utils.dateutils as _dateutils
 from netCDF4 import Dataset
 import raymond
 
@@ -9,6 +8,8 @@ model = "RRFS"
 host = "GDAS"
 Lx = 960.0
 pi = np.pi
+nbdy = 40  # 20 on each side
+blend = True
 
 # Eventually, these two lists should be the same. There is still some technical work
 # to be done to make sure the chgres_cube output (coldstart) matches the same grid
@@ -16,8 +17,6 @@ pi = np.pi
 vars_fg = ["u", "v", "T", "sphum", "delp"]
 vars_bg = ["u_s", "v_w", "t", "sphum", "delp"]
 
-nbdy = 40  # 20 on each side
-blend = True
 
 if blend:
     print("Starting blending")
@@ -41,11 +40,10 @@ if blend:
     nlev = reg_fg_nc.dimensions["zaxis_1"].size  # 65
     Dx = 3.0
 
-    if "sphum" in vars_fg:
-        # RRFS EnKF restart file fv_tracer.res.tile1 on ESG grid.
-        reg_fg_t = "./fg_blend_t.nc"
-        # Open the blended file for updating the required vars (use a copy of the regional file)
-        reg_fg_t_nc = Dataset(reg_fg_t, mode="a")
+    # RRFS EnKF restart file fv_tracer.res.tile1 on ESG grid.
+    reg_fg_t = "./fg_blend_t.nc"
+    # Open the blended file for updating the required vars (use a copy of the regional file)
+    reg_fg_t_nc = Dataset(reg_fg_t, mode="a")
 
     # Check matching grids
     if (glb_nlon != nlon or glb_nlat != nlat or glb_nlev != nlev or glb_Dx != Dx):
