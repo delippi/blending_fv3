@@ -1,10 +1,10 @@
 import numpy as np
 from netCDF4 import Dataset
 import raymond
-import remap
+import remap   # might need to rename in the future
 import sys
-#import pdb
-import tictoc
+import pdb     # pdb.set_trace() is a helpful debugging tool.
+import tictoc  # To use, put /u/donald.e.lippi/bin/python in your PYTHONPATH
 
 tic = tictoc.tic()
 Lx = 960.0
@@ -12,26 +12,11 @@ pi = np.pi
 nbdy = 40  # 20 on each side
 blend = True
 
-# Eventually, these two lists should be the same. There is still some technical work
-# to be done to make sure the chgres_cube output (coldstart) matches the same grid
-# staggering as the RRFS restart (warm start).
-# https://github.com/NOAA-GFDL/GFDL_atmos_cubed_sphere/blob/bdeee64e860c5091da2d169b1f4307ad466eca2c/tools/external_ic.F90#L433
-# https://dtcenter.org/sites/default/files/events/2020/20201105-1300p-fv3-gfdl-1.pdf (slides 15-16)
+# List of variables from the regional (fg) and global (bg) to blend respectively.
 vars_fg = ["u", "v", "T", "sphum", "delp"]
 vars_bg = ["u", "v", "t", "sphum", "delp"]
 #vars_fg = ["u"]
 #vars_bg = ["u"]
-# reads in data after it has been preprocessed with chgres_cube and has been
-# horizontally interpolated to the current cubed-sphere grid.
-# variables read in from 'gfs_data.nc'
-#       u_w -  D-grid west  face tangential wind component (m/s)
-#       v_w -  D-grid west  face normal wind component (m/s)
-#       u_s -  D-grid south face tangential wind component (m/s)
-#       v_s -  D-grid south face normal wind component (m/s)
-
-
-def inner_prod(v1, v2):
-    return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
 
 
 if blend:
@@ -42,10 +27,9 @@ if blend:
     # grid staggering and have the same orientation as the RRFS winds.
     glb_fg = str(sys.argv[1])
     glb_fg_nc = Dataset(glb_fg)
-    #glb_fg_nc = Dataset(glb_fg, mode="a")
     glb_nlon = glb_fg_nc.dimensions["lon"].size  # 1820   (lonp=1821)
     glb_nlat = glb_fg_nc.dimensions["lat"].size  # 1092   (latp=1093)
-    glb_nlev = glb_fg_nc.dimensions["lev"].size  # 65     (levp=66)
+    glb_nlev = glb_fg_nc.dimensions["lev"].size  # 66     (levp=67)
     glb_Dx = 3.0
 
     # RRFS EnKF restart file fv_core.res.tile1 on ESG grid.
@@ -65,11 +49,8 @@ if blend:
     # Check matching grids
     # Note: global_hyblev_fcst_rrfsL65.txt has 0.000 0.0000000 as the 66th row, so
     # don't compare glb_nlev and nlev because glb_nlev will be 66 and nlev will be 65.
-    # As a work around for now, we will just slice the top 65 levels of the global file
-    # and blend those with the regional file. The 66th level (bottom level) will not
-    # be changed since that level doesn't exist in the regional file. We may want to run
-    # chgres on the regional file to fix the differences in levels and to update more than
-    # just u_s and v_w; we might need to also update u_w and v_s.
+    # As a work around for now, we will just slice the top (or bottom?) 65 levels of
+    # the global file and blend those with the regional file.
     if (glb_nlon != nlon or glb_nlat != nlat or glb_Dx != Dx):
         print(f"glb_nlon:{glb_nlon} vs nlon:{nlon}")
         print(f"glb_nlat:{glb_nlat} vs nlat:{nlat}")
@@ -93,6 +74,7 @@ if blend:
     print(f"  Blended background file       : {reg_fg}, {reg_fg_t}")
 
     winds_done = False  # initialize to false.
+
     # Step 1. blend.
     for (var_fg, var_bg) in zip(vars_fg, vars_bg):
         i = vars_fg.index(var_fg)
@@ -118,34 +100,24 @@ if blend:
             var_work = np.zeros(shape=((nlon+nbdy), (nlat+nbdy), 1), dtype=np.float64)
             field_work = np.zeros(shape=((nlon+nbdy)*(nlat+nbdy)), dtype=np.float64)
         if dim == 3:  # 3D vars
-            # Remap winds to the compute domain (from D-grid)
-            # see: /lfs/h2/emc/da/noscrub/donald.e.lippi/rrfs/ufs-srweather-app/src/ufs_weather_model/FV3/atmos_cubed_sphere/tools/external_ic.F90
-
-# use fv_grid_utils_mod, only: mid_pt_sphere, get_unit_vect2, get_latlon_vector
-
-            nhalo_model = 3
+            # Remap winds to the compute domain (from chgres D-grid)
+            # References:
+            #    ufs_weather_model/FV3/atmos_cubed_sphere/tools/external_ic.F90
+            #    ufs_weather_model/FV3/atmos_cubed_sphere/model/fv_grid_utils.f90
             if var_bg == "u" or var_bg == "v" and not winds_done:
-                #grid = Dataset("./C3359_grid.tile7.halo4.nc")
-                bd = Dataset("./gfs.bndy.nc")
-                # /lfs/h2/emc/da/noscrub/donald.e.lippi/rrfs/ufs-srweather-app/src/
-                # ./ufs_weather_model/FV3/atmos_cubed_sphere/model/fv_regional_bc.F90
-
+                print("Starting the chgres wind transformation.")
                 isg = 0
                 ieg = nlon - 1
                 jsg = 0
                 jeg = nlat - 1
-                isd = isg - nhalo_model
-                ied = ieg + nhalo_model
-                jsd = jsg - nhalo_model
-                jed = jeg + nhalo_model
-                u_s = np.float64(glb_nc["u_s"][:, :, :])     # (66, 1093, 1820)
-                v_s = np.float64(glb_nc["v_s"][:, :, :])     # (66, 1093, 1820)
-                u_w = np.float64(glb_nc["u_w"][:, :, :])     # (66, 1092, 1821)
-                v_w = np.float64(glb_nc["v_w"][:, :, :])     # (66, 1092, 1821)
-                geolon_s = np.float64(glb_nc["geolon_s"][:,:])
-                geolat_s = np.float64(glb_nc["geolat_s"][:,:])
-                geolon_w = np.float64(glb_nc["geolon_w"][:,:])
-                geolat_w = np.float64(glb_nc["geolat_w"][:,:])
+                u_s = np.float64(glb_nc["u_s"][:, :, :])        # (66, 1093, 1820)
+                v_s = np.float64(glb_nc["v_s"][:, :, :])        # (66, 1093, 1820)
+                u_w = np.float64(glb_nc["u_w"][:, :, :])        # (66, 1092, 1821)
+                v_w = np.float64(glb_nc["v_w"][:, :, :])        # (66, 1092, 1821)
+                geolon_s = np.float64(glb_nc["geolon_s"][:,:])  # (1093, 1820)
+                geolat_s = np.float64(glb_nc["geolat_s"][:,:])  # (1093, 1820)
+                geolon_w = np.float64(glb_nc["geolon_w"][:,:])  # (1092, 1821)
+                geolat_w = np.float64(glb_nc["geolat_w"][:,:])  # (1092, 1821)
 
                 # Fortran wants everything transposed and in fortran array type
                 geolon_s = np.asfortranarray(geolon_s.transpose())
@@ -156,13 +128,10 @@ if blend:
                 v_s    = np.asfortranarray(v_s.transpose())
                 u_w    = np.asfortranarray(u_w.transpose())
                 v_w    = np.asfortranarray(v_w.transpose())
-                ud     = 0*u_s
-                vd     = 0*u_w
+                ud     = 0*u_s  # initialize to zero
+                vd     = 0*u_w  # initialize to zero
 
-                # Do I need to use a boundary? I think I'm getting nans along the boundary.
                 remap.main(geolon_s,geolat_s,geolon_w,geolat_w,isg+1,ieg+1,jsg+1,jeg+1,u_s,v_s,u_w,v_w,ud,vd)
-
-                # do I also need the remap_dwinds routine?
                 winds_done = True
             elif not var_bg == "u" and not var_bg == "v" :
                 glb = np.float64(glb_nc[var_bg][0:65, :, :])     # (65, 1093, 1820)
@@ -172,9 +141,6 @@ if blend:
             if var_bg == "v" and winds_done:
                 glb = np.transpose(vd[:, :, 0:65])
 
-            #print(np.max(glb))
-            #print(np.where(np.isnan(glb)))
-            #pdb.set_trace()
             reg = np.float64(reg_nc[var_fg][:, :, :, :])  # (1, 65, 1093, 1820)
             ntim = np.shape(reg)[0]
             nlev = np.shape(reg)[1]

@@ -19,6 +19,7 @@
 !$OMP             shared(is,ie,js,je,geolon_s,geolat_s,geolon_w,geolat_w,ud,vd,u_s,v_s,u_w,v_w) &
 !$OMP             private(p1,p2,p3,e1,e2,ex,ey)
  do k=1,66
+   write(*,*) "k=",k
    do j=js,je+1
      do i=is,ie
        p1(1) = geolon_s(i,  j)
