@@ -1,0 +1,6 @@
+#python/src/chgres_winds/remap.cpython-38-x86_64-linux-gnu.so
+*.so
+*.o
+*src.linux-x86_64-3.8*
+*.nc
+*save*
