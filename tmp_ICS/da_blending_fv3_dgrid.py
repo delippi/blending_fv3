@@ -112,10 +112,10 @@ for (var_fg, var_bg) in zip(vars_fg, vars_bg):
             fv_core = Dataset(fv_core)
             ak = np.float64(fv_core["ak"][0,:])
             bk = np.float64(fv_core["bk"][0,:])
-            isg = 0
-            ieg = nlon - 1
-            jsg = 0
-            jeg = nlat - 1
+            #isg = 0
+            #ieg = nlon - 1
+            #jsg = 0
+            #jeg = nlat - 1
             u_s = np.float64(glb_nc["u_s"][:, :, :])        # (66, 1093, 1820)
             v_s = np.float64(glb_nc["v_s"][:, :, :])        # (66, 1093, 1820)
             u_w = np.float64(glb_nc["u_w"][:, :, :])        # (66, 1092, 1821)
@@ -136,28 +136,40 @@ for (var_fg, var_bg) in zip(vars_fg, vars_bg):
             v_w    = np.asfortranarray(v_w.transpose())
             ud     = 0*u_s  # initialize to zero
             vd     = 0*u_w  # initialize to zero
-            pdb.set_trace()
 
-            remap.main(geolon_s,geolat_s,geolon_w,geolat_w,isg+1,ieg+1,jsg+1,jeg+1,u_s,v_s,u_w,v_w,ud,vd)
+            remap.main(geolon_s,geolat_s,geolon_w,geolat_w,u_s,v_s,u_w,v_w,ud,vd)
+
             winds_done = True
         elif not var_bg == "u" and not var_bg == "v" :
             glb = np.float64(glb_nc[var_bg][1:66, :, :])     # (65, 1093, 1820)
 
+
         if var_bg == "u" and winds_done:
             ud = np.transpose(ud)
-            glb = ud[1:66, :, :]
+            ud = ud[1:66, :, :]
+            glb = ud
             if dbg_chgres_winds:
+                glb_nc.createDimension("nlev",nlev)
                 var_to_duplicate = glb_nc.variables["u_s"]
-                glb_nc.createVariable("u", var_to_duplicate.datatype, var_to_duplicate.dimensions)
-                glb_nc.variables["u"][:,:,:] = ud
+                glb_nc.createVariable("ud", var_to_duplicate.datatype, ('nlev','latp','lon'))
+                glb_nc.variables["ud"][:,:,:] = ud
+                u = np.float64(reg_nc["u"][0, :, :, :])
+                udiff = u - ud
+                glb_nc.createVariable("udiff", var_to_duplicate.datatype, ('nlev','latp','lon'))
+                glb_nc.variables["udiff"][:,:,:] = udiff
 
         if var_bg == "v" and winds_done:
             vd = np.transpose(vd)
-            glb = vd[1:66, :, :]
+            vd = vd[1:66, :, :]
+            glb = vd
             if dbg_chgres_winds:
                 var_to_duplicate = glb_nc.variables["v_w"]
-                glb_nc.createVariable("v", var_to_duplicate.datatype, var_to_duplicate.dimensions)
-                glb_nc.variables["v"][:,:,:] = vd
+                glb_nc.createVariable("vd", var_to_duplicate.datatype, ('nlev','lat','lonp'))
+                glb_nc.variables["vd"][:,:,:] = vd
+                v = np.float64(reg_nc["v"][0, :, :, :])
+                vdiff = v - vd
+                glb_nc.createVariable("vdiff", var_to_duplicate.datatype, ('nlev','lat','lonp'))
+                glb_nc.variables["vdiff"][:,:,:] = vdiff
 
         reg = np.float64(reg_nc[var_fg][:, :, :, :])  # (1, 65, 1093, 1820)
         ntim = np.shape(reg)[0]

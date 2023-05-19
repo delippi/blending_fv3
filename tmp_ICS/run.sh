@@ -5,10 +5,10 @@
 #PBS -l select=2:ncpus=128
 #PBS -A RRFS-DEV
 #PBS -q dev
-#PBS -l walltime=000:10:00
+#PBS -l walltime=000:30:00
 
 set -x
-cd /lfs/h2/emc/da/noscrub/donald.e.lippi/blending/tmp_ICS_test
+cd /lfs/h2/emc/da/noscrub/donald.e.lippi/blending/blending_fv3/tmp_ICS
 cp ./gdas/out.atm.tile7.nc .
 # Copy the RRFS restarts because they are overwritten
 cp ./rrfs/RESTART/20220720.180000.fv_core.res.tile1.nc ./fv_core.res.tile1.nc

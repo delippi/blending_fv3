@@ -13,6 +13,9 @@
  real(kind=8), dimension(3):: e1,e2,ex,ey
  integer :: i,j,k
  integer :: is,ie,js,je,ks,ke
+ real(kind=8), parameter:: pi=4.D0*DATAN(1.D0)
+ real(kind=8), parameter:: deg2rad=pi/180.D0
+ real(kind=8), parameter:: r360=360.D0
 
  is = lbound(ud, dim=1)
  ie = ubound(ud, dim=1)
@@ -28,6 +31,7 @@
 
  write(*,*) "geolon_s(ie+1,1)",geolon_s(ie+1,1),ie+1
  write(*,*) "geolon_s(1,1)",geolon_s(1,1)
+ write(*,*) "deg2rad",deg2rad
 
 !$OMP parallel do default(none) &
 !$OMP          shared(is,ie,js,je,ks,ke,geolon_s,geolat_s,geolon_w,geolat_w,ud,vd,u_s,v_s,u_w,v_w) &
@@ -36,10 +40,17 @@
    !write(*,*) "k=",k
    do j=js,je+1 !lats
      do i=is,ie !lons
-       p1(1) = geolon_s(i,  j) !(1,1) to (768,769)
-       p1(2) = geolat_s(i,  j)
-       p2(1) = geolon_s(i+1,j) !(2,1) to (769,769)
-       p2(2) = geolat_s(i+1,j)
+!       p1(1) = (geolon_s(i,  j)-r360)*deg2rad  !(-180, 180)
+!       p1(2) = geolat_s(i,  j)*deg2rad
+!       p2(1) = (geolon_s(i+1,j)-r360)*deg2rad
+!       p2(2) = geolat_s(i+1,j)*deg2rad
+       p1(1) = geolon_s(i,  j)*deg2rad  !(0, 360)
+       p1(2) = geolat_s(i,  j)*deg2rad
+       p2(1) = geolon_s(i+1,j)*deg2rad
+       p2(2) = geolat_s(i+1,j)*deg2rad
+
+       p1(2) = geolat_s(i,  j)*deg2rad
+       p2(2) = geolat_s(i+1,j)*deg2rad
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e1)
        call get_latlon_vector(p3, ex, ey)
@@ -47,11 +58,15 @@
        if (i .eq. 1 .and. j .eq. 1 .and. k .eq. 1) then
          write(*,*) "p1=",p1(1),p1(2)
          write(*,*) "p2=",p2(1),p2(2)
+         write(*,*) "p3=",p3(1),p3(2)
          write(*,*) "e1=",e1
          write(*,*) "ex=",ex
          write(*,*) "ey=",ey
          write(*,*) "inner_prod(e1,ex)",inner_prod(e1,ex)
          write(*,*) "inner_prod(e1,ey)",inner_prod(e1,ey)
+         write(*,*) "u_s(i,j,k)",u_s(i,j,k)
+         write(*,*) "v_s(i,j,k)",v_s(i,j,k)
+         write(*,*) "ud(i,j,k)",ud(i,j,k)
        end if
        if ( isnan(ud(i,j,k))) then
          write(*,*) "NaN at i,j,k",i,j,k
@@ -61,10 +76,10 @@
    enddo
    do j=js,je
      do i=is,ie+1
-       p1(1) = geolon_w(i,j)
-       p1(2) = geolat_w(i,j)
-       p2(1) = geolon_w(i,j+1)
-       p2(2) = geolat_w(i,j+1)
+       p1(1) = (geolon_w(i,j)-r360)*deg2rad
+       p1(2) = geolat_w(i,j)*deg2rad
+       p2(1) = (geolon_w(i,j+1)-r360)*deg2rad
+       p2(2) = geolat_w(i,j+1)*deg2rad
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e2)
        call get_latlon_vector(p3, ex, ey)
@@ -278,5 +293,3 @@
   enddo
 
  end  subroutine cart_to_latlon
-
-

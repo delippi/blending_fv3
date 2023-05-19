@@ -47,24 +47,28 @@ vd     = 0*u_w  # initialize to zero
 remap.main(geolon_s,geolat_s,geolon_w,geolat_w,u_s,v_s,u_w,v_w,ud,vd)
 
 nlev = cold_nc.createDimension("nlev",nlev)
+top=1
+bot=128
 
 ud = np.transpose(ud)
+ud = ud[top:bot,:,:]
 var_to_duplicate = cold_nc.variables["u_s"]
 cold_nc.createVariable("u", var_to_duplicate.datatype, ('nlev','latp','lon'))
-cold_nc.variables["u"][:,:,:] = ud[1:128,:,:]
+cold_nc.variables["u"][:,:,:] = ud
 
 vd = np.transpose(vd)
+vd = vd[top:bot,:,:]
 var_to_duplicate = cold_nc.variables["v_w"]
-#cold_nc.createVariable("v", var_to_duplicate.datatype, var_to_duplicate.dimensions)
 cold_nc.createVariable("v", var_to_duplicate.datatype, ('nlev','lat','lonp'))
-cold_nc.variables["v"][:,:,:] = vd[1:128,:,:]
+cold_nc.variables["v"][:,:,:] = vd
 
-udiff = u - ud[1:128,:,:]
+udiff = u - ud
 var_to_duplicate = cold_nc.variables["u_s"]
 cold_nc.createVariable("udiff", var_to_duplicate.datatype, ('nlev','latp','lon'))
 cold_nc.variables["udiff"][:,:,:] = udiff[:,:,:]
+print(f"udiff min/max={np.min(udiff[:,0:760,0:760])}/{np.max(udiff[:,0:760,0:760])}")
 
-vdiff = v - vd[1:128,:,:]
+vdiff = v - vd
 var_to_duplicate = cold_nc.variables["v_w"]
 cold_nc.createVariable("vdiff", var_to_duplicate.datatype, ('nlev','lat','lonp'))
 cold_nc.variables["vdiff"][:,:,:] = vdiff[:,:,:]
