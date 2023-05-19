@@ -1,0 +1,42 @@
+&config
+ fix_dir_target_grid="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768/fix_sfc"
+
+ mosaic_file_target_grid="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768/C768_mosaic.nc"
+
+ orog_dir_target_grid="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768"
+
+ orog_files_target_grid="C768_oro_data.tile1.nc","C768_oro_data.tile2.nc","C768_oro_data.tile3.nc","C768_oro_data.tile4.nc","C768_oro_data.tile5.nc","C768_oro_data.tile6.nc"
+
+ mosaic_file_input_grid="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768/C768_mosaic.nc"
+
+ orog_dir_input_grid="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768"
+
+ orog_files_input_grid="C768_oro_data.tile1.nc","C768_oro_data.tile2.nc","C768_oro_data.tile3.nc","C768_oro_data.tile4.nc","C768_oro_data.tile5.nc","C768_oro_data.tile6.nc"
+
+ data_dir_input_grid="/lfs/h2/emc/da/noscrub/donald.e.lippi/blending/test_chgres_winds/warmstart/gdas.<YYYYMMDD>/<HH>/RESTART"
+
+ atm_core_files_input_grid="<YYYYMMDD>.<HH>0000.fv_core.res.tile1.nc","<YYYYMMDD>.<HH>0000.fv_core.res.tile2.nc","<YYYYMMDD>.<HH>0000.fv_core.res.tile3.nc","<YYYYMMDD>.<HH>0000.fv_core.res.tile4.nc","<YYYYMMDD>.<HH>0000.fv_core.res.tile5.nc","<YYYYMMDD>.<HH>0000.fv_core.res.tile6.nc","<YYYYMMDD>.<HH>0000.fv_core.res.nc"
+
+ atm_tracer_files_input_grid="<YYYYMMDD>.<HH>0000.fv_tracer.res.tile1.nc","<YYYYMMDD>.<HH>0000.fv_tracer.res.tile2.nc","<YYYYMMDD>.<HH>0000.fv_tracer.res.tile3.nc","<YYYYMMDD>.<HH>0000.fv_tracer.res.tile4.nc","<YYYYMMDD>.<HH>0000.fv_tracer.res.tile5.nc","<YYYYMMDD>.<HH>0000.fv_tracer.res.tile6.nc"
+
+ sfc_files_input_grid="<YYYYMMDD>.<HH>0000.sfcanl_data.tile1.nc","<YYYYMMDD>.<HH>0000.sfcanl_data.tile2.nc","<YYYYMMDD>.<HH>0000.sfcanl_data.tile3.nc","<YYYYMMDD>.<HH>0000.sfcanl_data.tile4.nc","<YYYYMMDD>.<HH>0000.sfcanl_data.tile5.nc","<YYYYMMDD>.<HH>0000.sfcanl_data.tile6.nc"
+
+ vcoord_file_target_grid="/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/am/20220805/global_hyblev.l128.txt"
+
+ cycle_mon=<MM>
+
+ cycle_day=<DD>
+
+ cycle_hour=<HH>
+
+ convert_atm=.true.
+
+ convert_sfc=.false.
+
+ convert_nst=.false.
+
+ tracers="sphum","liq_wat","o3mr","ice_wat","rainwat","snowwat","graupel"
+
+ tracers_input="sphum","liq_wat","o3mr","ice_wat","rainwat","snowwat","graupel"
+/
+
