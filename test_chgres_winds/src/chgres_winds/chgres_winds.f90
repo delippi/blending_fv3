@@ -8,13 +8,14 @@
  real(kind=8), dimension(:,:),   intent(IN)    :: geolon_w,geolat_w
  real(kind=8), dimension(:,:,:), intent(IN)    :: u_w,v_w
  real(kind=8), dimension(:,:,:), intent(INOUT) :: vd
- real(kind=16) :: inner_prod
+ real(kind=8) :: inner_prod
  real(kind=8), dimension(2):: p1,p2,p3
  real(kind=8), dimension(3):: e1,e2,ex,ey
  integer :: i,j,k
  integer :: is,ie,js,je,ks,ke
  real(kind=8), parameter:: pi=4.D0*DATAN(1.D0)
  real(kind=8), parameter:: deg2rad=pi/180.D0
+ real(kind=8), parameter:: rad2deg=180.D0/pi
  real(kind=8), parameter:: r360=360.D0
 
  is = lbound(ud, dim=1)
@@ -40,25 +41,24 @@
    !write(*,*) "k=",k
    do j=js,je+1 !lats
      do i=is,ie !lons
-!       p1(1) = (geolon_s(i,  j)-r360)*deg2rad  !(-180, 180)
-!       p1(2) = geolat_s(i,  j)*deg2rad
-!       p2(1) = (geolon_s(i+1,j)-r360)*deg2rad
-!       p2(2) = geolat_s(i+1,j)*deg2rad
-       p1(1) = geolon_s(i,  j)*deg2rad  !(0, 360)
+       p1(1) = geolon_s(i,  j)*deg2rad
        p1(2) = geolat_s(i,  j)*deg2rad
        p2(1) = geolon_s(i+1,j)*deg2rad
-       p2(2) = geolat_s(i+1,j)*deg2rad
-
-       p1(2) = geolat_s(i,  j)*deg2rad
        p2(2) = geolat_s(i+1,j)*deg2rad
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e1)
        call get_latlon_vector(p3, ex, ey)
        ud(i,j,k) = u_s(i,j,k)*inner_prod(e1,ex) + v_s(i,j,k)*inner_prod(e1,ey)
-       if (i .eq. 1 .and. j .eq. 1 .and. k .eq. 1) then
-         write(*,*) "p1=",p1(1),p1(2)
-         write(*,*) "p2=",p2(1),p2(2)
-         write(*,*) "p3=",p3(1),p3(2)
+       if ( abs(ud(i,j,k) - 12.8145490901456) .le. 0.000001) then
+         write(*,*) "test:i,j,k=",i,j,k
+         write(*,*) "ud(i,j,k)",ud(i,j,k)
+       endif
+       !if (i .eq. 1 .and. j .eq. 1 .and. k .eq. 1) then
+       if (i .eq. 327+1 .and. j .eq. 208+1 .and. k .eq. 68+2) then
+         write(*,*) "i,j,k=",i,j,k
+         write(*,*) "p1=",p1(1)*rad2deg,p1(2)*rad2deg
+         write(*,*) "p2=",p2(1)*rad2deg,p2(2)*rad2deg
+         write(*,*) "p3=",p3(1)*rad2deg,p3(2)*rad2deg
          write(*,*) "e1=",e1
          write(*,*) "ex=",ex
          write(*,*) "ey=",ey
@@ -76,9 +76,9 @@
    enddo
    do j=js,je
      do i=is,ie+1
-       p1(1) = (geolon_w(i,j)-r360)*deg2rad
-       p1(2) = geolat_w(i,j)*deg2rad
-       p2(1) = (geolon_w(i,j+1)-r360)*deg2rad
+       p1(1) = geolon_w(i,j  )*deg2rad
+       p1(2) = geolat_w(i,j  )*deg2rad
+       p2(1) = geolon_w(i,j+1)*deg2rad
        p2(2) = geolat_w(i,j+1)*deg2rad
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e2)
@@ -95,7 +95,7 @@
  return
  end subroutine main
 
-   real*16 function inner_prod(v1, v2)
+   real*8 function inner_prod(v1, v2)
        real(kind=8),intent(in):: v1(3), v2(3)
        real(kind=16) :: vp1(3), vp2(3), prod16
        integer k
