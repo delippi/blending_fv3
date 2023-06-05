@@ -1,13 +1,15 @@
- subroutine main(geolon_s,geolat_s,geolon_w,geolat_w,u_s,v_s,u_w,v_w,ud,vd)
+ subroutine main(gridx,gridy,u_s,v_s,u_w,v_w,ud,vd)
+ use ISO_FORTRAN_ENV
  use omp_lib
  use, intrinsic :: ieee_arithmetic
  implicit none
- real(kind=8), dimension(:,:),   intent(IN)    :: geolon_s,geolat_s !(nlon,nlat)
+ integer, parameter     :: f_p = selected_real_kind(20)
+ integer, parameter     :: f_d  = 8
  real(kind=8), dimension(:,:,:), intent(IN)    :: u_s,v_s
  real(kind=8), dimension(:,:,:), intent(INOUT) :: ud
- real(kind=8), dimension(:,:),   intent(IN)    :: geolon_w,geolat_w
  real(kind=8), dimension(:,:,:), intent(IN)    :: u_w,v_w
  real(kind=8), dimension(:,:,:), intent(INOUT) :: vd
+ real(kind=8), dimension(:,:),   intent(IN)    :: gridx,gridy !(nlon,nlat)
  real(kind=8) :: inner_prod
  real(kind=8), dimension(2):: p1,p2,p3
  real(kind=8), dimension(3):: e1,e2,ex,ey
@@ -25,67 +27,38 @@
  ks = lbound(ud, dim=3)
  ke = ubound(ud, dim=3)
 
- write(*,*) "is =",is
- write(*,*) "ie =",ie
- write(*,*) "js =",js
- write(*,*) "je =",je
-
- write(*,*) "geolon_s(ie+1,1)",geolon_s(ie+1,1),ie+1
- write(*,*) "geolon_s(1,1)",geolon_s(1,1)
- write(*,*) "deg2rad",deg2rad
-
 !$OMP parallel do default(none) &
-!$OMP          shared(is,ie,js,je,ks,ke,geolon_s,geolat_s,geolon_w,geolat_w,ud,vd,u_s,v_s,u_w,v_w) &
+!$OMP          shared(is,ie,js,je,ks,ke,gridx,gridy,ud,vd,u_s,v_s,u_w,v_w) &
 !$OMP          private(p1,p2,p3,e1,e2,ex,ey)
  do k=ks,ke
-   !write(*,*) "k=",k
    do j=js,je+1 !lats
      do i=is,ie !lons
-       p1(1) = geolon_s(i,  j)*deg2rad
-       p1(2) = geolat_s(i,  j)*deg2rad
-       p2(1) = geolon_s(i+1,j)*deg2rad
-       p2(2) = geolat_s(i+1,j)*deg2rad
+       p1(1) = gridx(i,  j)*deg2rad
+       p1(2) = gridy(i,  j)*deg2rad
+       p2(1) = gridx(i+1,j)*deg2rad
+       p2(2) = gridy(i+1,j)*deg2rad
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e1)
        call get_latlon_vector(p3, ex, ey)
        ud(i,j,k) = u_s(i,j,k)*inner_prod(e1,ex) + v_s(i,j,k)*inner_prod(e1,ey)
-       if ( abs(ud(i,j,k) - 12.8145490901456) .le. 0.000001) then
-         write(*,*) "test:i,j,k=",i,j,k
-         write(*,*) "ud(i,j,k)",ud(i,j,k)
-       endif
-       !if (i .eq. 1 .and. j .eq. 1 .and. k .eq. 1) then
-       if (i .eq. 327+1 .and. j .eq. 208+1 .and. k .eq. 68+2) then
-         write(*,*) "i,j,k=",i,j,k
-         write(*,*) "p1=",p1(1)*rad2deg,p1(2)*rad2deg
-         write(*,*) "p2=",p2(1)*rad2deg,p2(2)*rad2deg
-         write(*,*) "p3=",p3(1)*rad2deg,p3(2)*rad2deg
-         write(*,*) "e1=",e1
-         write(*,*) "ex=",ex
-         write(*,*) "ey=",ey
-         write(*,*) "inner_prod(e1,ex)",inner_prod(e1,ex)
-         write(*,*) "inner_prod(e1,ey)",inner_prod(e1,ey)
-         write(*,*) "u_s(i,j,k)",u_s(i,j,k)
-         write(*,*) "v_s(i,j,k)",v_s(i,j,k)
-         write(*,*) "ud(i,j,k)",ud(i,j,k)
-       end if
        if ( isnan(ud(i,j,k))) then
-         write(*,*) "NaN at i,j,k",i,j,k
+         write(*,*) "in ud loop: NaN at i,j,k",i,j,k
          stop
        end if
      enddo
    enddo
    do j=js,je
      do i=is,ie+1
-       p1(1) = geolon_w(i,j  )*deg2rad
-       p1(2) = geolat_w(i,j  )*deg2rad
-       p2(1) = geolon_w(i,j+1)*deg2rad
-       p2(2) = geolat_w(i,j+1)*deg2rad
+       p1(1) = gridx(i,  j)*deg2rad
+       p1(2) = gridy(i,  j)*deg2rad
+       p2(1) = gridx(i,j+1)*deg2rad
+       p2(2) = gridy(i,j+1)*deg2rad
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e2)
        call get_latlon_vector(p3, ex, ey)
        vd(i,j,k) = u_w(i,j,k)*inner_prod(e2,ex) + v_w(i,j,k)*inner_prod(e2,ey)
        if ( isnan(vd(i,j,k))) then
-         write(*,*) "NaN at i,j,k",i,j,k
+         write(*,*) "in vd loop: NaN at i,j,k",i,j,k
          stop
        end if
      enddo
@@ -96,13 +69,15 @@
  end subroutine main
 
    real*8 function inner_prod(v1, v2)
+       integer, parameter     :: f_p = selected_real_kind(20)
+       integer, parameter     :: f_d  = 8
        real(kind=8),intent(in):: v1(3), v2(3)
-       real(kind=16) :: vp1(3), vp2(3), prod16
+       real(kind=f_p) :: vp1(3), vp2(3), prod16
        integer k
 
          do k=1,3
-            vp1(k) = real(v1(k),kind=16)
-            vp2(k) = real(v2(k),kind=16)
+            vp1(k) = real(v1(k),kind=f_p)
+            vp2(k) = real(v2(k),kind=f_p)
          enddo
          prod16 = vp1(1)*vp2(1) + vp1(2)*vp2(2) + vp1(3)*vp2(3)
          inner_prod = prod16
@@ -110,7 +85,9 @@
   end function inner_prod
 
  subroutine mid_pt_sphere(p1, p2, pm)
+ use ISO_FORTRAN_ENV
  implicit none
+      integer, parameter     :: f_d  = 8
       real(kind=8) , intent(IN)  :: p1(2), p2(2)
       real(kind=8) , intent(OUT) :: pm(2)
 !------------------------------------------
@@ -124,7 +101,9 @@
  end subroutine mid_pt_sphere
 
  subroutine get_unit_vect2( e1, e2, uc )
+ use ISO_FORTRAN_ENV
  implicit none
+   integer, parameter     :: f_d  = 8
    real(kind=8), intent(in) :: e1(2), e2(2)
    real(kind=8), intent(out):: uc(3) !< unit vector e1--->e2
 ! Local:
@@ -142,7 +121,9 @@
  end subroutine get_unit_vect2
 
  subroutine get_latlon_vector(pp, elon, elat)
+ use ISO_FORTRAN_ENV
  implicit none
+ integer, parameter     :: f_d  = 8
  real(kind=8), intent(IN)  :: pp(2)
  real(kind=8), intent(OUT) :: elon(3), elat(3)
 
@@ -162,10 +143,13 @@
 
 !>@brief The subroutine 'normalize_vect' makes 'e' a unit vector.
  subroutine normalize_vect(e)
+ use ISO_FORTRAN_ENV
  implicit none
 
+ integer, parameter     :: f_p = selected_real_kind(20)
+ integer, parameter     :: f_d  = 8
  real(kind=8), intent(inout):: e(3)
- real(kind=16):: pdot
+ real(kind=f_p):: pdot
  integer k
 
     pdot = e(1)**2 + e(2)**2 + e(3)**2
@@ -180,7 +164,9 @@
 !>@brief The subroutine 'vect_cross performs cross products
 !! of 3D vectors: e = P1 X P2
  subroutine vect_cross(e, p1, p2)
+ use ISO_FORTRAN_ENV
  implicit none
+ integer, parameter     :: f_d  = 8
  real(kind=8), intent(in) :: p1(3), p2(3)
  real(kind=8), intent(out):: e(3)
 
@@ -192,15 +178,18 @@
 
 !>@brief The subroutine 'latlon2xyz' maps (lon, lat) to (x,y,z)
  subroutine latlon2xyz(p, e, id)
+ use ISO_FORTRAN_ENV
  implicit none
 
+ integer, parameter     :: f_p = selected_real_kind(20)
+ integer, parameter     :: f_d  = 8
  real(kind=8), intent(in) :: p(2)
  real(kind=8), intent(out):: e(3)
  integer, optional, intent(in):: id !< id=0 do nothing; id=1, right_hand
 
  integer n
- real(kind=16):: q(2)
- real(kind=16):: e1, e2, e3
+ real(kind=f_p):: q(2)
+ real(kind=f_p):: e1, e2, e3
 
  logical, save       :: first_time = .true.
  integer, save       :: id_latlon
@@ -224,12 +213,15 @@
 
 
  subroutine mid_pt3_cart(p1, p2, e)
+ use ISO_FORTRAN_ENV
  implicit none
+       integer, parameter     :: f_p = selected_real_kind(20)
+       integer, parameter     :: f_d  = 8
        real(kind=8), intent(IN)  :: p1(3), p2(3)
        real(kind=8), intent(OUT) :: e(3)
 !
-       real(kind=16):: q1(3), q2(3)
-       real(kind=16):: dd, e1, e2, e3
+       real(kind=f_p):: q1(3), q2(3)
+       real(kind=f_p):: dd, e1, e2, e3
        integer k
 
        do k=1,3
@@ -253,16 +245,19 @@
  end subroutine mid_pt3_cart
 
  subroutine cart_to_latlon(np, q, xs, ys)
+ use ISO_FORTRAN_ENV
  implicit none
 ! vector version of cart_to_latlon1
   integer, intent(in):: np
+  integer, parameter     :: f_p = selected_real_kind(20)
+  integer, parameter     :: f_d  = 8
   real(kind=8), intent(inout):: q(3,np)
   real(kind=8), intent(inout):: xs(np), ys(np)
 ! local
   real(kind=8), parameter:: esl=1.d-10
   real(kind=8), parameter:: pi=4.D0*DATAN(1.D0)
-  real(kind=16):: p(3)
-  real(kind=16):: dist, lat, lon
+  real(kind=f_p):: p(3)
+  real(kind=f_p):: dist, lat, lon
   integer i,k
 
   do i=1,np
@@ -275,12 +270,12 @@
      enddo
 
      if ( (abs(p(1))+abs(p(2)))  < esl ) then
-          lon = real(0.,kind=16)
+          lon = real(0.,kind=f_p)
      else
           lon = atan2( p(2), p(1) )   ! range [-pi,pi]
      endif
 
-     if ( lon < 0.) lon = real(2.,kind=16)*pi + lon
+     if ( lon < 0.) lon = real(2.,kind=f_p)*pi + lon
 ! RIGHT_HAND system:
      lat = asin(p(3))
 
