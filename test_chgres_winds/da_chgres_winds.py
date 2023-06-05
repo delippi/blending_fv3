@@ -100,13 +100,6 @@ if True:
     coldnc.createVariable("vdiff", var_to_duplicate.datatype, ('nlev','lat','lonp'))
     coldnc.variables["vdiff"][:,:,:] = vdiff[:,:,:]
 
-    t_cold = np.transpose(t_cold)
-    t_cold = t_cold[top:bot,:,:]
-    tdiff = T - t_cold
-    var_to_duplicate = coldnc.variables["t"]
-    coldnc.createVariable("tdiff", var_to_duplicate.datatype, ('nlev','lat', 'lon'))
-    coldnc.variables["tdiff"][:,:,:] = tdiff[:,:,:] 
-
 # close the nc files
 warmnc.close()
 coldnc.close()
