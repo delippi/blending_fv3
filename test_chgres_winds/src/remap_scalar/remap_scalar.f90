@@ -1,7 +1,7 @@
 ! call remap_scalar(Atm, levp, npz, ntracers, ak, bk, ps, q, zh, omga, temp)
 ! subroutine remap_scalar(Atm, km, npz, ncnst, ak0, bk0, psc, qa, zh, omga, t_in)
 !subroutine main(km, npz, ak0, bk0, psc, zh, omga, t_in)
- subroutine main(km, npz, ncnst, ak0, bk0, psc, qa, zh, omga, t_in)
+ subroutine main(km, npz, ncnst, ak0, bk0, psc, qa, zh, omga, t_in,Atm_delp,Atm_q,Atm_pt)
  use omp_lib
  use, intrinsic :: ieee_arithmetic
  implicit none
@@ -19,12 +19,21 @@
  !Atm_values - input 
 
  !Atm_values - computed
- real(kind=8)                                 ::  Atm_ptop
- real(kind=8), dimension(:),     allocatable  ::  Atm_ak,Atm_bk !128
- real(kind=8), dimension(:,:),   allocatable  ::  Atm_phis,Atm_ps
- real(kind=8), dimension(:,:,:), allocatable  ::  Atm_delp,Atm_delz,Atm_peln,Atm_pt,Atm_w
- real(kind=8), dimension(:,:,:,:),allocatable ::  Atm_q
-
+ real(kind=8)                                  ::  Atm_ptop
+ real(kind=8), dimension(:),      allocatable  ::  Atm_ak,Atm_bk !128
+ real(kind=8), dimension(:,:),    allocatable  ::  Atm_phis,Atm_ps
+ real(kind=8), dimension(:,:,:),  allocatable  ::  Atm_delz,Atm_peln,Atm_w
+ real(kind=8), dimension(:,:,:),  intent(INOUT)::  Atm_delp,Atm_pt
+ real(kind=8), dimension(:,:,:,:),intent(INOUT)::  Atm_q
+! real(kind=8), dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
+! real(kind=8), dimension(is:ie,js:je)         ::  Atm_phis,Atm_ps
+! real(kind=8), dimension(is:ie,js:je,1:npz)   ::  Atm_delz,Atm_peln,Atm_w
+! real(kind=8), dimension(is:ie,1:npz+1,js:je) ::  Atm_peln
+! real, dimension(is:ie,1:npz)  ::  dp2,qn1
+! real, dimension(is:ie,1:km+1) ::  pe0,pe1,pn0,pn1
+! real, dimension(is:ie,js:je)  ::  z500
+! real(kind=8), dimension(is:ie,js:je,1:npz), intent(INOUT)::  Atm_delp,Atm_pt
+! real(kind=8), dimension(is:ie,js:je,1:npz+1,1:ncnst), intent(INOUT) ::  Atm_q
 
  integer :: sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel
  integer :: i,j,k,n
@@ -53,15 +62,15 @@
  js = lbound(psc, dim=2)
  je = ubound(psc, dim=2)
  k2 = max(10, km/2)
- write(*,*) "is=",is
- write(*,*) "ie=",ie
- write(*,*) "js=",js
- write(*,*) "je=",je
- write(*,*) "km=",km
- write(*,*) "npz=",npz
- write(*,*) "k2=",k2
- write(*,*) "upper bound of ak0=",ubound(ak0,dim=1)
- write(*,*) "upper bound of bk0=",ubound(bk0,dim=1)
+ !write(*,*) "is=",is
+ !write(*,*) "ie=",ie
+ !write(*,*) "js=",js
+ !write(*,*) "je=",je
+ !write(*,*) "km=",km
+ !write(*,*) "npz=",npz
+ !write(*,*) "k2=",k2
+ !write(*,*) "upper bound of ak0=",ubound(ak0,dim=1)
+ !write(*,*) "upper bound of bk0=",ubound(bk0,dim=1)
 
  !1D
  allocate(Atm_ak(npz+1))
@@ -78,13 +87,13 @@
  allocate(pn0(ie,km+1))
  allocate(pn1(ie,km+1))
  !3D
- allocate(Atm_delp(ie,je,npz))
+! allocate(Atm_delp(ie,je,npz))
  allocate(Atm_delz(ie,je,npz))
- allocate(Atm_pt(ie,je,npz))
+! allocate(Atm_pt(ie,je,npz))
  allocate(Atm_w(ie,je,npz))
  allocate(Atm_peln(ie,npz+1,je))
- !4D
- allocate(Atm_q(ie,je,npz,ncnst))
+! !4D
+! allocate(Atm_q(ie,je,npz,ncnst))
 
 
  !The OpenMPI part likes to have initialized arrays/values... set most things to zero
@@ -92,33 +101,33 @@
  pst=0
  l=0
  m=0
- !1D
+! !1D
  Atm_ak = ak0(2:km+1)
  Atm_bk = bk0(2:km+1)
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(itoa)
- gz_fv(1:npz+1) = 0
- gz(1:2*km+1) = 0
- pn(1:2*km+1) = 0 
- !2D
+! gz_fv(1:npz+1) = 0
+! gz(1:2*km+1) = 0
+! pn(1:2*km+1) = 0 
+! !2D
  Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
- Atm_ps(is:ie,js:je) = 0
- qp(is:ie,js:je) = 0
- z500(is:ie,js:je) = 0
- dp2(is:ie,1:npz) = 0
- qn1(is:ie,1:npz) = 0
- pe0(is:ie,1:km+1) = 0
- pe1(is:ie,1:km+1) = 0
- pn0(is:ie,1:km+1) = 0
- pn1(is:ie,1:km+1) = 0
- !3D
- Atm_delp(is:ie,js:je,1:npz) = 0
- Atm_delz(is:ie,js:je,1:npz) = 0
- Atm_pt(is:ie,js:je,1:npz) = 0
- Atm_w(is:ie,js:je,1:npz) = 0
- Atm_peln(is:ie,1:npz+1,js:je) = 0
- !4D
- Atm_q(is:ie,js:je,1:npz+1,1:ncnst) = 0
+! Atm_ps(is:ie,js:je) = 0
+! qp(is:ie,js:je) = 0
+! z500(is:ie,js:je) = 0
+! dp2(is:ie,1:npz) = 0
+! qn1(is:ie,1:npz) = 0
+! pe0(is:ie,1:km+1) = 0
+! pe1(is:ie,1:km+1) = 0
+! pn0(is:ie,1:km+1) = 0
+! pn1(is:ie,1:km+1) = 0
+! !3D
+! !Atm_delp(is:ie,js:je,1:npz) = 0
+! Atm_delz(is:ie,js:je,1:npz) = 0
+! !Atm_pt(is:ie,js:je,1:npz) = 0
+! Atm_w(is:ie,js:je,1:npz) = 0
+! Atm_peln(is:ie,1:npz+1,js:je) = 0
+! !4D
+! !Atm_q(is:ie,js:je,1:npz+1,1:ncnst) = 0
 
  ! This is the order in my python code
  sphum   = 1
@@ -129,34 +138,31 @@
  snowwat = 6
  graupel = 7
 
-
-!!$OMP parallel do default(none) &
-!!$OMP             shared(ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,z500,t_in, &
-!!$OMP                    sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
-!!$OMP                    Atm_ps,Atm_phis,Atm_delp,Atm_ak,Atm_bk,Atm_ptop,Atm_q, &
-!!$OMP                    Atm_pt,Atm_w,Atm_peln,Atm_delz, &
-!!$OMP                    data_source_fv3gfs,hydrostatic,nwat,ncep_ic,nggps_ic) &
-!!$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
-
-
-  jloop: do j=js,js !+5 !je
+!$OMP parallel do default(none) &
+!$OMP             shared(ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,z500,t_in, &
+!$OMP                    sphum,liq_wat,ice_wat,rainwat,snowwat,graupel, &
+!$OMP                    Atm_ps,Atm_phis,Atm_delp,Atm_ak,Atm_bk,Atm_ptop,Atm_q, &
+!$OMP                    Atm_pt,Atm_w,Atm_peln,Atm_delz, &
+!$OMP                    data_source_fv3gfs,hydrostatic,nwat,ncep_ic,nggps_ic) &
+!$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
+  jloop: do j=js,js+10 !je
      write(*,*) "j=",j
      do k=1,km+1
         do i=is,ie
            pe0(i,k) = ak0(k) + bk0(k)*psc(i,j)
            pn0(i,k) = log(pe0(i,k))
         enddo
-        if(j==1) write(*,*) "lippi debug 1",k,ak0(k),Atm_ak(k)
+        !if(j==1) write(*,*) "lippi debug 1",k,ak0(k),Atm_ak(k)
      enddo
-     if(j==1) write(*,*) "lippi debug 1.0"
+     !if(j==1) write(*,*) "lippi debug 1.0"
 
      iloop: do i=is,ie !i-loop start
-        if(j==1 .and. i==1) write(*,*) "lippi debug 1.1"
+        !if(j==1 .and. i==1) write(*,*) "lippi debug 1.1"
         do k=1,km+1
            pn(k) = pn0(i,k)
            gz(k) = zh(i,j,k)*grav
         enddo
-        if(j==1 .and. i==1) write(*,*) "lippi debug 1.2"
+        !if(j==1 .and. i==1) write(*,*) "lippi debug 1.2"
 ! Use log-p for interpolation/extrapolation
 ! mirror image method:
         do k=km+2, km+k2
@@ -164,18 +170,15 @@
            gz(k) = 2.*gz(km+1) - gz(l)
            pn(k) = 2.*pn(km+1) - pn(l)
         enddo
-        if(j==1 .and. i==1) write(*,*) "lippi debug 1.3"
+        !if(j==1 .and. i==1) write(*,*) "lippi debug 1.3"
         do k=km+k2-1, 2, -1
            if( Atm_phis(i,j).le.gz(k) .and. Atm_phis(i,j).ge.gz(k+1) ) then
               pst = pn(k) + (pn(k+1)-pn(k))*(gz(k)-Atm_phis(i,j))/(gz(k)-gz(k+1))
               go to 123
            endif
         enddo
-!123     Atm_ps(i,j) = exp(pst)
-!        if(j==1) write(*,*) "lippi debug 2: i=",i,"ps=",Atm_ps(i,j)
-123      if(j==1) write(*,*) "lippi debug 2: i=",i
-         Atm_ps(i,j) = exp(pst)
-         if(j==1) write(*,*) "lippi debug 3: i=",i,"ps=",Atm_ps(i,j)
+123     Atm_ps(i,j) = exp(pst)
+        !if(j==1) write(*,*) "lippi debug 2: i=",i,"ps=",Atm_ps(i,j)
 
  ! ------------------
  ! Find 500-mb height
@@ -210,7 +213,7 @@
      enddo
 
 ! map tracers
-     write(*,*) "lippi debug 3: start tracers loop"
+     !write(*,*) "lippi debug 3: start tracers loop"
      tracers: do iq=1,ncnst
         if (floor(qa(is,j,1,iq)) > -999) then !skip missing scalars
            do k=1,km
@@ -235,7 +238,7 @@
 !---------------------------------------------------
 ! Retrive temperature using  geopotential height from external data
 !---------------------------------------------------
-   write(*,*) "lippi debug 4: start iloop2"
+   !write(*,*) "lippi debug 4: start iloop2"
    iloop2: do i=is,ie
 ! Make sure FV3 top is lower than GFS; can not do extrapolation above the top at this point
       if ( pn1(i,1) .lt. pn0(i,1) ) then
@@ -325,7 +328,7 @@
 ! seperate cloud water and cloud ice from Jan-Huey Chen's HiRAM code
 ! only use for NCEP IC and GFDL microphy 
 !-----------------------------------------------------------------------
-   write(*,*) "lippi debug 5: seperate cloud water and cloud ice" 
+   !write(*,*) "lippi debug 5: seperate cloud water and cloud ice" 
    if (.not. data_source_fv3gfs) then
       if ((nwat .eq. 3 .or. nwat .eq. 6) .and. (ncep_ic .or. nggps_ic)) then
          do k=1,npz
@@ -382,7 +385,7 @@
 !-------------------------------------------------------------
 ! map omega or w
 !------- ------------------------------------------------------
-   write(*,*) "lippi debug 6: map omega or w" 
+   !write(*,*) "lippi debug 6: map omega or w" 
    if ( (.not. hydrostatic) .and. (.not. ncep_ic) ) then
       do k=1,km
          do i=is,ie
@@ -408,7 +411,9 @@
 !5000 continue
 
   enddo jloop
-  write(*,*) "lippi debug 7: Done." 
+  !write(*,*) "lippi debug 7: Done." 
+  write(*,*) "Atm_pt(1,1,1)",Atm_pt(1,1,1)
+  write(*,*) "Atm_pt(1,693,442)",Atm_pt(1,693,442)
 
  end subroutine main
 
