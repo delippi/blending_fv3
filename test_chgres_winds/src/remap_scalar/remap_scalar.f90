@@ -4,14 +4,20 @@
  use omp_lib
  use, intrinsic :: ieee_arithmetic
  implicit none
- integer,                          intent(IN)    ::  km, npz, ncnst !km=128, npz=127, ncnst=7
+ integer,                          intent(IN)    ::  km       ! 128
+ integer,                          intent(IN)    ::  npz      ! 127
+ integer,                          intent(IN)    ::  ncnst    !   7
+ real,         dimension(:),       intent(IN)    ::  ak0      ! (129,)
+ real,         dimension(:),       intent(IN)    ::  bk0      ! (129,)
+ real,         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
+ real,         dimension(:,:,:),   intent(IN)    ::  zh       ! (768, 768, 129)
+ real,         dimension(:,:,:),   intent(IN)    ::  omga     ! (768, 768, 128)
+ real,         dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 127)
+ real,         dimension(:,:,:,:), intent(IN)    ::  qa       ! (768, 768, 128, 7)
+ real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp ! (768, 768, 127)
+ real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_pt   ! (768, 768, 127)
+ real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 128, 7)
  integer,                          intent(IN)    ::  is, ie, js, je
- real,         dimension(:),       intent(IN)    ::  ak0, bk0 !129
- real,         dimension(:,:),     intent(IN)    ::  psc
- real,         dimension(:,:,:),   intent(IN)    ::  zh, omga, t_in
- real,         dimension(:,:,:,:), intent(IN)    ::  qa
- real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp, Atm_pt
- real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q
 
  real                                         ::  Atm_ptop
  real(kind=8)                                 ::  pst
