@@ -1,5 +1,5 @@
 FC = ifort
-FFLAGS = -fopenmp #-g
+FFLAGS = -fopenmp #-check -g -warn
 
 all: remap_scalar.so
 
