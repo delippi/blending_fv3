@@ -1,5 +1,5 @@
- subroutine main(km, npz, ncnst, ak0, bk0, psc, qa, zh, omga, t_in, &
-                 is, ie, js, je, Atm_pt, Atm_q, Atm_delp)
+ subroutine main(km, npz, ncnst, ak0, bk0, Atm_ak, Atm_bk, psc, qa, zh, omga, t_in, &
+                 is, ie, js, je, Atm_pt, Atm_q, Atm_delp, Atm_phis)
  use ISO_FORTRAN_ENV
  use omp_lib
  use, intrinsic :: ieee_arithmetic
@@ -12,8 +12,11 @@
  real,         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
  real,         dimension(:,:,:),   intent(IN)    ::  zh       ! (768, 768, 129)
  real,         dimension(:,:,:),   intent(IN)    ::  omga     ! (768, 768, 128)
- real,         dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 127)
+ real,         dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 128)
  real,         dimension(:,:,:,:), intent(IN)    ::  qa       ! (768, 768, 128, 7)
+ real,         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
+ real,         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
+ real,         dimension(:,:),     intent(IN)    ::  Atm_phis ! (768, 768)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp ! (768, 768, 127)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_pt   ! (768, 768, 127)
  real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 128, 7)
@@ -23,8 +26,9 @@
  real(kind=8)                                 ::  pst
  real(kind=8), dimension(2*km+1)              ::  pn,gz
  real(kind=8), dimension(npz+1)               ::  gz_fv
- real,         dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
- real(kind=8), dimension(is:ie,js:je)         ::  Atm_phis,Atm_ps
+ !real,         dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
+ !real(kind=8), dimension(is:ie,js:je)         ::  Atm_phis
+ real(kind=8), dimension(is:ie,js:je)         ::  Atm_ps
  real(kind=8), dimension(is:ie,js:je,1:npz)   ::  Atm_delz,Atm_w
  real(kind=8), dimension(is:ie,1:npz+1,js:je) ::  Atm_peln
 
@@ -32,7 +36,6 @@
  real, dimension(is:ie,1:km+1) ::  pe0,pe1,pn0,pn1
  real, dimension(is:ie,js:je)  ::  z500,qp
 
- real :: small
 
  integer :: sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel
  integer :: i,j,k,iq
@@ -50,15 +53,18 @@
  real, parameter :: rvgas = 461.50 !< gfs: gas constant for water vapor
  real, parameter:: zvir =  rvgas/rdgas - 1.     !< = 0.607789855
 
- small = 1e-6
 
  k2 = max(10, km/2)
 
- Atm_ak = ak0(2:km+1)
- Atm_bk = bk0(2:km+1)
+ !Atm_ak = ak0(2:km+1)
+ !Atm_bk = bk0(2:km+1)
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
- Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
+ !Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
+   write(*,*) Atm_phis(1,1)
+   write(*,*) Atm_phis(1,2)
+   write(*,*) Atm_phis(1,3)
+
 
  ! This is the order in my python code
  sphum   = 1
@@ -76,7 +82,7 @@
 !$OMP                    Atm_phis,Atm_ak,Atm_bk,Atm_ptop, &
 !$OMP                    Atm_ps,Atm_delp,Atm_w,Atm_q, &
 !$OMP                    Atm_pt,Atm_peln,Atm_delz, &
-!$OMP                    data_source_fv3gfs,hydrostatic,nwat,ncep_ic,nggps_ic,small) &
+!$OMP                    data_source_fv3gfs,hydrostatic,nwat,ncep_ic,nggps_ic) &
 !$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
 
 
@@ -108,6 +114,9 @@
            endif
         enddo
 123     Atm_ps(i,j) = exp(pst)
+        if(i<= 3 .and. j<=3) then
+        write(*,*) "ps(",i,",",j,")",Atm_ps(i,j)
+        endif
 
  ! ------------------
  ! Find 500-mb height
@@ -223,7 +232,7 @@
 ! Compute true temperature using hydrostatic balance
 !----------------------------------------------------
       !if (.not. data_source_fv3gfs .or. .not. present(t_in)) then
-      if (.not. data_source_fv3gfs) then 
+      if (.not. data_source_fv3gfs) then
         do k=1,npz
 !#ifdef MULTI_GASES
 !           Atm_pt(i,j,k) = (gz_fv(k)-gz_fv(k+1))/( rdgas*(pn1(i,k+1)-pn1(i,k))*virq(Atm_q(i,j,k,:)) )
@@ -338,8 +347,8 @@
    5000 continue
 
   write(*,*) "Atm_pt(1,1,1)",Atm_pt(1,1,1)
-  write(*,*) "Atm_pt(1,693,442)",Atm_pt(1,693,442)
-  write(*,*) "Atm_pt(1,442,693)",Atm_pt(1,442,693)
+  !write(*,*) "Atm_pt(0,693,442)",Atm_pt(693+1,442+1,0+1)
+  write(*,*) "Atm_pt(0,442,693)",Atm_pt(442+1,693+1,0+1)
 
  end subroutine main
 
@@ -350,9 +359,9 @@
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
- 
+
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
- 
+
 ! pe1: pressure at layer edges (from model top to bottom surface)
 !      in the original vertical coordinate
 ! pe2: pressure at layer edges (from model top to bottom surface)
