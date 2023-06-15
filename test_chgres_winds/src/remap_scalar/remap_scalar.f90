@@ -5,48 +5,43 @@
  use, intrinsic :: ieee_arithmetic
  implicit none
  integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+ integer,                          intent(IN)    ::  is, ie, js, je
  integer,                          intent(IN)    ::  km       ! 128
  integer,                          intent(IN)    ::  npz      ! 127
  integer,                          intent(IN)    ::  ncnst    !   7
- real(kind=8),         dimension(:),       intent(IN)    ::  ak0      ! (129,)
- real(kind=8),         dimension(:),       intent(IN)    ::  bk0      ! (129,)
- real(kind=8),         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
- real(kind=8),         dimension(:,:,:),   intent(IN)    ::  zh       ! (768, 768, 129)
- real(kind=8),         dimension(:,:,:),   intent(IN)    ::  omga     ! (768, 768, 128)
- real(kind=8),         dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 128)
- real(kind=8),         dimension(:,:,:,:), intent(IN)    ::  qa       ! (768, 768, 128, 7)
- real(kind=8),         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
- real(kind=8),         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
+ real(kind=8), dimension(:),       intent(IN)    ::  ak0      ! (129,)
+ real(kind=8), dimension(:),       intent(IN)    ::  bk0      ! (129,)
+ real(kind=8), dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
+ real(kind=8), dimension(:,:,:),   intent(IN)    ::  zh       ! (768, 768, 129)
+ real(kind=8), dimension(:,:,:),   intent(IN)    ::  omga     ! (768, 768, 128)
+ real(kind=8), dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 128)
+ real(kind=8), dimension(:,:,:,:), intent(IN)    ::  qa       ! (768, 768, 128, 7)
+ real(kind=8), dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
+ real(kind=8), dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
  real(kind=8), dimension(:,:),     intent(IN)    ::  Atm_phis ! (768, 768)
  real(kind=8), dimension(:,:),     intent(INOUT) ::  Atm_ps   ! (768, 768)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp ! (768, 768, 127)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_pt   ! (768, 768, 127)
  real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 128, 7)
- integer,                          intent(IN)    ::  is, ie, js, je
-
- real(kind=8)                                 ::  Atm_ptop
- real(kind=8)                                 ::  pst
- real(kind=8), dimension(2*km+1)              ::  pn,gz
- real(kind=8), dimension(npz+1)               ::  gz_fv
- !real(kind=8),         dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
- !real(kind=8), dimension(is:ie,js:je)         ::  Atm_phis
-! real(kind=8), dimension(is:ie,js:je)         ::  Atm_ps
- real(kind=8), dimension(is:ie,js:je,npz)   ::  Atm_delz,Atm_w
- real(kind=8), dimension(is:ie,npz+1,js:je) ::  Atm_peln
-
- real(kind=8), dimension(is:ie,npz)   ::  dp2,qn1
- real(kind=8), dimension(is:ie,km+1)  ::  pe0
- real(kind=8), dimension(is:ie,npz+1) ::  pe1
- real(kind=8), dimension(is:ie,km+1) ::  pn0
- real(kind=8), dimension(is:ie,npz+1) ::  pn1
- real(kind=8), dimension(is:ie,km)  ::  qp
- real(kind=8), dimension(is:ie,js:je)  ::  z500
-
+ real(kind=8)                                    ::  Atm_ptop
+ real(kind=8)                                    ::  pst
+ real(kind=8), dimension(2*km+1)                 ::  pn,gz
+ real(kind=8), dimension(npz+1)                  ::  gz_fv
+ real(kind=8), dimension(is:ie,js:je,npz)        ::  Atm_delz
+ real(kind=8), dimension(is:ie,js:je,npz)        ::  Atm_w
+ real(kind=8), dimension(is:ie,npz+1,js:je)      ::  Atm_peln
+ real(kind=8), dimension(is:ie,npz)              ::  dp2
+ real(kind=8), dimension(is:ie,npz)              ::  qn1
+ real(kind=8), dimension(is:ie,km+1)             ::  pe0
+ real(kind=8), dimension(is:ie,npz+1)            ::  pe1
+ real(kind=8), dimension(is:ie,km+1)             ::  pn0
+ real(kind=8), dimension(is:ie,npz+1)            ::  pn1
+ real(kind=8), dimension(is:ie,km)               ::  qp
+ real(kind=8), dimension(is:ie,js:je)            ::  z500
 
  integer :: sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel
  integer :: i,j,k,iq
  integer :: k2,l,itoa,m
-
  integer :: nwat = 6
  logical :: data_source_fv3gfs = .true.
  logical :: hydrostatic = .true.
@@ -347,7 +342,7 @@
 
 !-------------------------------------------------------------------------------------------------
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
-!! one set of vertical levels to another. 
+!! one set of vertical levels to another.
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
  use ISO_FORTRAN_ENV
 ! IV = 0: constituents
@@ -364,20 +359,20 @@
  integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2, km, kn, kord, iv
  real(kind=8), intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
-                                                      !!      surface in the ORIGINAL vertical coordinate 
-                                                      !< pe2: pressure at layer edges from model top to bottom 
+                                                      !!      surface in the ORIGINAL vertical coordinate
+                                                      !< pe2: pressure at layer edges from model top to bottom
                                                       !!      surface in the NEW vertical coordinate
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
  real(kind=8), intent(in )::  q1(i1:i2,km)
  real(kind=8), intent(out)::  q2(i1:i2,kn)
- real(kind=8), intent(IN) :: ptop
+ real(kind=8), intent(IN) ::  ptop
 ! local
       real(kind=8) qs(i1:i2)
-      real(kind=8)dp1(i1:i2,km)
-      real(kind=8)a4(4,i1:i2,km)
+      real(kind=8) dp1(i1:i2,km)
+      real(kind=8) a4(4,i1:i2,km)
       integer i, k, l
       integer k0, k1
-      real(kind=8)pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
+      real(kind=8) pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
 
       do k=1,km
          do i=i1,i2
@@ -480,155 +475,6 @@
 5555  continue
 
  end subroutine mappm
-
- subroutine fillq(im, km, nq, q, dp)
- use ISO_FORTRAN_ENV
- integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
-   integer,  intent(in):: im            !< No. of longitudes
-   integer,  intent(in):: km            !< No. of levels
-   integer,  intent(in):: nq            !< Total number of tracers
-   real(kind=8), intent(in)::  dp(im,km)       !< pressure thickness
-   real(kind=8), intent(inout) :: q(im,km,nq)  !< tracer mixing ratio
-! !LOCAL VARIABLES:
-   integer i, k, ic, k1
-
-   do ic=1,nq
-! Bottom up:
-      do k=km,2,-1
-         k1 = k-1
-         do i=1,im
-           if( q(i,k,ic) < 0. ) then
-               q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
-               q(i,k ,ic) = 0.
-           endif
-         enddo
-      enddo
-! Top down:
-      do k=1,km-1
-         k1 = k+1
-         do i=1,im
-            if( q(i,k,ic) < 0. ) then
-                q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
-                q(i,k ,ic) = 0.
-            endif
-         enddo
-      enddo
-
-   enddo
-
- end subroutine fillq
-
-!>@brief The subroutine 'fillz' is for mass-conservative filling of nonphysical negative values in the tracers. 
-!>@details This routine takes mass from adjacent cells in the same column to fill negatives, if possible.
- subroutine fillz(im, km, nq, q, dp)
- use ISO_FORTRAN_ENV
- integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
-   integer,  intent(in):: im                !< No. of longitudes
-   integer,  intent(in):: km                !< No. of levels
-   integer,  intent(in):: nq                !< Total number of tracers
-   real(kind=8), intent(in)::  dp(im,km)           !< pressure thickness
-   real(kind=8), intent(inout) :: q(im,km,nq)      !< tracer mixing ratio
-! LOCAL VARIABLES:
-   logical:: zfix(im)
-   real(kind=8)::  dm(km)
-   integer i, k, ic !, k1
-   real(kind=8) qup, qly, dup, dq, sum0, sum1, fac
-
-   do ic=1,nq
-!#ifdef DEV_GFS_PHYS
-!! Bottom up:
-!      do k=km,2,-1
-!         k1 = k-1
-!         do i=1,im
-!           if( q(i,k,ic) < 0. ) then
-!               q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
-!               q(i,k ,ic) = 0.
-!           endif
-!         enddo
-!      enddo
-!! Top down:
-!      do k=1,km-1
-!         k1 = k+1
-!         do i=1,im
-!            if( q(i,k,ic) < 0. ) then
-!                q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
-!                q(i,k ,ic) = 0.
-!            endif
-!         enddo
-!      enddo
-!#else
-! Top layer
-      do i=1,im
-         if( q(i,1,ic) < 0. ) then
-             q(i,2,ic) = q(i,2,ic) + q(i,1,ic)*dp(i,1)/dp(i,2)
-             q(i,1,ic) = 0.
-          endif
-      enddo
-
-! Interior
-      zfix(:) = .false.
-      do k=2,km-1
-         do i=1,im
-         if( q(i,k,ic) < 0. ) then
-             zfix(i) = .true.
-             if ( q(i,k-1,ic) > 0. ) then
-! Borrow from above
-                dq = min ( q(i,k-1,ic)*dp(i,k-1), -q(i,k,ic)*dp(i,k) ) 
-                q(i,k-1,ic) = q(i,k-1,ic) - dq/dp(i,k-1)
-                q(i,k  ,ic) = q(i,k  ,ic) + dq/dp(i,k  )
-             endif
-             if ( q(i,k,ic)<0.0 .and. q(i,k+1,ic)>0. ) then
-! Borrow from below:
-                dq = min ( q(i,k+1,ic)*dp(i,k+1), -q(i,k,ic)*dp(i,k) ) 
-                q(i,k+1,ic) = q(i,k+1,ic) - dq/dp(i,k+1)
-                q(i,k  ,ic) = q(i,k  ,ic) + dq/dp(i,k  )
-             endif
-          endif
-         enddo
-      enddo
- 
-! Bottom layer
-      k = km
-      do i=1,im
-         if( q(i,k,ic)<0. .and. q(i,k-1,ic)>0.) then
-             zfix(i) = .true.
-! Borrow from above
-             qup =  q(i,k-1,ic)*dp(i,k-1)
-             qly = -q(i,k  ,ic)*dp(i,k  )
-             dup =  min(qly, qup)
-             q(i,k-1,ic) = q(i,k-1,ic) - dup/dp(i,k-1) 
-             q(i,k,  ic) = q(i,k,  ic) + dup/dp(i,k  )
-          endif
-      enddo
-
-! Perform final check and non-local fix if needed
-      do i=1,im
-         if ( zfix(i) ) then
-
-           sum0 = 0.
-           do k=2,km
-              dm(k) = q(i,k,ic)*dp(i,k)
-              sum0 = sum0 + dm(k)
-           enddo
-
-           if ( sum0 > 0. ) then
-             sum1 = 0.
-             do k=2,km
-                sum1 = sum1 + max(0., dm(k))
-             enddo
-             fac = sum0 / sum1
-             do k=2,km
-                q(i,k,ic) = max(0., fac*dm(k)/dp(i,k))
-             enddo
-           endif
-
-         endif
-      enddo
-!#endif
-
-   enddo
- end subroutine fillz
-
 
  subroutine cs_profile(qs, a4, delp, km, i1, i2, iv, kord)
  use ISO_FORTRAN_ENV
@@ -1473,4 +1319,154 @@
   endif
 
  end subroutine mp_auto_conversion
+
+ subroutine fillq(im, km, nq, q, dp)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+   integer,  intent(in):: im            !< No. of longitudes
+   integer,  intent(in):: km            !< No. of levels
+   integer,  intent(in):: nq            !< Total number of tracers
+   real(kind=8), intent(in)::  dp(im,km)       !< pressure thickness
+   real(kind=8), intent(inout) :: q(im,km,nq)  !< tracer mixing ratio
+! !LOCAL VARIABLES:
+   integer i, k, ic, k1
+
+   do ic=1,nq
+! Bottom up:
+      do k=km,2,-1
+         k1 = k-1
+         do i=1,im
+           if( q(i,k,ic) < 0. ) then
+               q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
+               q(i,k ,ic) = 0.
+           endif
+         enddo
+      enddo
+! Top down:
+      do k=1,km-1
+         k1 = k+1
+         do i=1,im
+            if( q(i,k,ic) < 0. ) then
+                q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
+                q(i,k ,ic) = 0.
+            endif
+         enddo
+      enddo
+
+   enddo
+
+ end subroutine fillq
+
+!>@brief The subroutine 'fillz' is for mass-conservative filling of nonphysical negative values in the tracers. 
+!>@details This routine takes mass from adjacent cells in the same column to fill negatives, if possible.
+ subroutine fillz(im, km, nq, q, dp)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+   integer,  intent(in):: im                !< No. of longitudes
+   integer,  intent(in):: km                !< No. of levels
+   integer,  intent(in):: nq                !< Total number of tracers
+   real(kind=8), intent(in)::  dp(im,km)           !< pressure thickness
+   real(kind=8), intent(inout) :: q(im,km,nq)      !< tracer mixing ratio
+! LOCAL VARIABLES:
+   logical:: zfix(im)
+   real(kind=8)::  dm(km)
+   integer i, k, ic !, k1
+   real(kind=8) qup, qly, dup, dq, sum0, sum1, fac
+
+   do ic=1,nq
+!#ifdef DEV_GFS_PHYS
+!! Bottom up:
+!      do k=km,2,-1
+!         k1 = k-1
+!         do i=1,im
+!           if( q(i,k,ic) < 0. ) then
+!               q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
+!               q(i,k ,ic) = 0.
+!           endif
+!         enddo
+!      enddo
+!! Top down:
+!      do k=1,km-1
+!         k1 = k+1
+!         do i=1,im
+!            if( q(i,k,ic) < 0. ) then
+!                q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
+!                q(i,k ,ic) = 0.
+!            endif
+!         enddo
+!      enddo
+!#else
+! Top layer
+      do i=1,im
+         if( q(i,1,ic) < 0. ) then
+             q(i,2,ic) = q(i,2,ic) + q(i,1,ic)*dp(i,1)/dp(i,2)
+             q(i,1,ic) = 0.
+          endif
+      enddo
+
+! Interior
+      zfix(:) = .false.
+      do k=2,km-1
+         do i=1,im
+         if( q(i,k,ic) < 0. ) then
+             zfix(i) = .true.
+             if ( q(i,k-1,ic) > 0. ) then
+! Borrow from above
+                dq = min ( q(i,k-1,ic)*dp(i,k-1), -q(i,k,ic)*dp(i,k) ) 
+                q(i,k-1,ic) = q(i,k-1,ic) - dq/dp(i,k-1)
+                q(i,k  ,ic) = q(i,k  ,ic) + dq/dp(i,k  )
+             endif
+             if ( q(i,k,ic)<0.0 .and. q(i,k+1,ic)>0. ) then
+! Borrow from below:
+                dq = min ( q(i,k+1,ic)*dp(i,k+1), -q(i,k,ic)*dp(i,k) ) 
+                q(i,k+1,ic) = q(i,k+1,ic) - dq/dp(i,k+1)
+                q(i,k  ,ic) = q(i,k  ,ic) + dq/dp(i,k  )
+             endif
+          endif
+         enddo
+      enddo
+ 
+! Bottom layer
+      k = km
+      do i=1,im
+         if( q(i,k,ic)<0. .and. q(i,k-1,ic)>0.) then
+             zfix(i) = .true.
+! Borrow from above
+             qup =  q(i,k-1,ic)*dp(i,k-1)
+             qly = -q(i,k  ,ic)*dp(i,k  )
+             dup =  min(qly, qup)
+             q(i,k-1,ic) = q(i,k-1,ic) - dup/dp(i,k-1) 
+             q(i,k,  ic) = q(i,k,  ic) + dup/dp(i,k  )
+          endif
+      enddo
+
+! Perform final check and non-local fix if needed
+      do i=1,im
+         if ( zfix(i) ) then
+
+           sum0 = 0.
+           do k=2,km
+              dm(k) = q(i,k,ic)*dp(i,k)
+              sum0 = sum0 + dm(k)
+           enddo
+
+           if ( sum0 > 0. ) then
+             sum1 = 0.
+             do k=2,km
+                sum1 = sum1 + max(0., dm(k))
+             enddo
+             fac = sum0 / sum1
+             do k=2,km
+                q(i,k,ic) = max(0., fac*dm(k)/dp(i,k))
+             enddo
+           endif
+
+         endif
+      enddo
+!#endif
+
+   enddo
+ end subroutine fillz
+
+
 

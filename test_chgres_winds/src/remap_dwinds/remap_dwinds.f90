@@ -1,42 +1,58 @@
  subroutine main(km, npz, ak0, bk0, Atm_ak, Atm_bk, psc, ud, vd, is, ie, js, je, Atm_u, Atm_v, Atm_ps)
-
  use ISO_FORTRAN_ENV
  use omp_lib
  use, intrinsic :: ieee_arithmetic
  implicit none
  integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+ integer,                          intent(IN)    ::  is, ie, js, je
  integer,                          intent(IN)    ::  km       ! 128
  integer,                          intent(IN)    ::  npz      ! 127
-
- real(kind=8),         dimension(:),       intent(IN)    ::  ak0      ! (129,)
- real(kind=8),         dimension(:),       intent(IN)    ::  bk0      ! (129,)
- real(kind=8),         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
- real(kind=8),         dimension(:,:),     intent(IN)    ::  Atm_ps   !
- real(kind=8),         dimension(:,:,:),   intent(INOUT) ::  Atm_u    !
- real(kind=8),         dimension(:,:,:),   intent(INOUT) ::  Atm_v    !
- real(kind=8),         dimension(:,:,:),   intent(IN)    ::  ud
- real(kind=8),         dimension(:,:,:),   intent(IN)    ::  vd
- real(kind=8),         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
- real(kind=8),         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
- integer,                          intent(IN)    ::  is, ie, js, je
-
- real(kind=8)                                 ::  Atm_ptop
- real(kind=8), dimension(is:ie,js:je)         ::  psd
-
- !real(kind=8), dimension(1:npz+1)      ::  Atm_ak,Atm_bk !128
- real(kind=8), dimension(is:ie,1:npz)  ::  dp2,qn1
- real(kind=8), dimension(is:ie,1:km+1) ::  pe0,pe1,pn0,pn1
- real(kind=8), dimension(is:ie,js:je)  ::  z500,qp
+ real(kind=8), dimension(:),       intent(IN)    ::  ak0      ! (129,)
+ real(kind=8), dimension(:),       intent(IN)    ::  bk0      ! (129,)
+ real(kind=8), dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
+ real(kind=8), dimension(:,:),     intent(IN)    ::  Atm_ps   !
+ real(kind=8), dimension(:,:,:),   intent(IN)    ::  ud
+ real(kind=8), dimension(:,:,:),   intent(IN)    ::  vd
+ real(kind=8), dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
+ real(kind=8), dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
+ real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_u    !
+ real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_v    !
+ real(kind=8)                                    ::  Atm_ptop
+ real(kind=8), dimension(is:ie,js:je)            ::  psd
+ real(kind=8), dimension(is:ie+1,1:npz)          ::  qn1
+ real(kind=8), dimension(is:ie+1,1:km+1)         ::  pe0
+ real(kind=8), dimension(is:ie+1,1:npz+1)        ::  pe1
 
  integer :: i,j,k,itoa
 
- !Atm_ak = ak0(2:km+1)
- !Atm_bk = bk0(2:km+1)
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
 
  psd = psc
  !psd = Atm_ps
+
+write(*,*) "Shape and Kind of Variables:"
+write(*,*) "is:", shape(is), ", kind=", kind(is)
+write(*,*) "ie:", shape(ie), ", kind=", kind(ie)
+write(*,*) "js:", shape(js), ", kind=", kind(js)
+write(*,*) "je:", shape(je), ", kind=", kind(je)
+write(*,*) "km:", shape(km), ", kind=", kind(km)
+write(*,*) "npz:", shape(npz), ", kind=", kind(npz)
+write(*,*) "ak0:", shape(ak0), ", kind=", kind(ak0)
+write(*,*) "bk0:", shape(bk0), ", kind=", kind(bk0)
+write(*,*) "psc:", shape(psc), ", kind=", kind(psc)
+write(*,*) "Atm_ps:", shape(Atm_ps), ", kind=", kind(Atm_ps)
+write(*,*) "ud:", shape(ud), ", kind=", kind(ud)
+write(*,*) "vd:", shape(vd), ", kind=", kind(vd)
+write(*,*) "Atm_ak:", shape(Atm_ak), ", kind=", kind(Atm_ak)
+write(*,*) "Atm_bk:", shape(Atm_bk), ", kind=", kind(Atm_bk)
+write(*,*) "Atm_u:", shape(Atm_u), ", kind=", kind(Atm_u)
+write(*,*) "Atm_v:", shape(Atm_v), ", kind=", kind(Atm_v)
+write(*,*) "Atm_ptop:", shape(Atm_ptop), ", kind=", kind(Atm_ptop)
+write(*,*) "psd:", shape(psd), ", kind=", kind(psd)
+write(*,*) "qn1:", shape(qn1), ", kind=", kind(qn1)
+write(*,*) "pe0:", shape(pe0), ", kind=", kind(pe0)
+write(*,*) "pe1:", shape(pe1), ", kind=", kind(pe1)
 
 !$OMP parallel do default(none) &
 !$OMP                          shared(is,ie,js,je,npz,km,ak0,bk0,psc,psd,ud,vd,Atm_ak, &
@@ -93,10 +109,11 @@
      endif
 
 
-5000 continue
+   5000 continue
+
  end subroutine main
 
-
+!-------------------------------------------------------------------------------------------------
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
 !! one set of vertical levels to another.
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
@@ -112,6 +129,7 @@
 ! pe2: pressure at layer edges (from model top to bottom surface)
 !      in the new vertical coordinate
 
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2, km, kn, kord, iv
  real(kind=8), intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
                                                       !!      surface in the ORIGINAL vertical coordinate
@@ -122,7 +140,7 @@
  real(kind=8), intent(out)::  q2(i1:i2,kn)
  real(kind=8), intent(IN) ::  ptop
 ! local
-      real(kind=8)  qs(i1:i2)
+      real(kind=8) qs(i1:i2)
       real(kind=8) dp1(i1:i2,km)
       real(kind=8) a4(4,i1:i2,km)
       integer i, k, l

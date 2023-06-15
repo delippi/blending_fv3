@@ -1,5 +1,5 @@
 FC = ifort
-FFLAGS = -fopenmp
+FFLAGS = -fopenmp #-warn
 
 all: remap_dwinds.so
 

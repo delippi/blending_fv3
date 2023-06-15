@@ -29,10 +29,10 @@ gridnc = Dataset(grid)
 akbkcoldnc = Dataset(akbkcold)
 orognc = Dataset(orog)
 
-ColdStartWinds = True
+ColdStartWinds  = True
 VertRemapScalar = True
-VertRemapWinds = True
-WriteData = True
+VertRemapWinds  = True
+WriteData       = True
 Debug = False
 
 top=1; bot=128
@@ -85,13 +85,13 @@ if VertRemapScalar:
     # Data from cold restarts: lippi here: npz=127 km=128
     levp = 128  # (km)
     npz  = 127
-    ak0  = np.float64(akbkcoldnc["vcoord"][0, :])       # ( lev,         ) == (128,         )
-    bk0  = np.float64(akbkcoldnc["vcoord"][1, :])       # ( lev,         ) == (128,         )
-    ak   = np.float64(akbknc["ak"][0, :])       # ( lev,         ) == (128,         )
-    bk   = np.float64(akbknc["bk"][0, :])       # ( lev,         ) == (128,         )
-    ps   = np.float64(coldnc["ps"][:, :])       # (      lat, lon) == (     768, 768)
-    zh   = np.float64(coldnc["zh"][:, :, :])    # (levp, lat, lon) == (129, 768, 768)
-    omga = np.float64(coldnc["w"][:, :, :])     # ( lev, lat, lon) == (128, 768, 768)
+    ak0  = np.float64(akbkcoldnc["vcoord"][0, :])   # ( lev,         ) == (128,         )
+    bk0  = np.float64(akbkcoldnc["vcoord"][1, :])   # ( lev,         ) == (128,         )
+    ak   = np.float64(akbknc["ak"][0, :])           # ( lev,         ) == (128,         )
+    bk   = np.float64(akbknc["bk"][0, :])           # ( lev,         ) == (128,         )
+    ps   = np.float64(coldnc["ps"][:, :])           # (      lat, lon) == (     768, 768)
+    zh   = np.float64(coldnc["zh"][:, :, :])        # (levp, lat, lon) == (129, 768, 768)
+    omga = np.float64(coldnc["w"][:, :, :])         # ( lev, lat, lon) == (128, 768, 768)
     delp_cold = np.float64(coldnc["delp"][:, :, :]) # (127, 768, 768)
     t_cold    = np.float64(coldnc["t"][:, :, :])    # (128, 768, 768)
     Atm_phis  = np.float64(warmnc["phis"][0, :, :])
@@ -105,6 +105,13 @@ if VertRemapScalar:
     rainwat = np.float64(coldnc["rainwat"][:, :, :])
     snowwat = np.float64(coldnc["snowwat"][:, :, :])
     graupel = np.float64(coldnc["graupel"][:, :, :])
+    ntracers = 7
+    qa = np.array([sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel])
+
+    isrt=1
+    iend=np.shape(t_cold)[1]
+    jsrt=1
+    jend=np.shape(t_cold)[2]
 
     # Fortran wants everything transposed and in fortran array type
     ak   = np.asfortranarray(ak)  # Don't transpose 1D array
@@ -112,44 +119,22 @@ if VertRemapScalar:
     ak0  = np.asfortranarray(ak0)
     bk0  = np.asfortranarray(bk0)
     Atm_phis = np.asfortranarray(np.transpose(Atm_phis))
-
-    #ak0 = np.insert(ak, 0, 1.000000000000000E-009)
-    #bk0 = np.insert(bk, 0, 1.000000000000000E-009)
-    ak0[0] = 1.000000000000000E-009
-    bk0[0] = 1.000000000000000E-009
-
-
     ps   = np.asfortranarray(ps.transpose())
     zh   = np.asfortranarray(zh.transpose())
     omga = np.asfortranarray(omga.transpose())
-    #temp = np.asfortranarray(temp.transpose())
-
-    qa = np.array([sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel])
     qa = np.asfortranarray(qa.transpose())
-    ntracers = 7
-    #delp_cold = np.float64(coldnc["delp"][top:bot, :, :]) # (127, 768, 768)
-    #t_cold    = np.float64(coldnc["t"][top:bot, :, :])    # (128, 768, 768)
-    isrt=1
-    iend=np.shape(t_cold)[1]
-    jsrt=1
-    jend=np.shape(t_cold)[2]
     delp_cold = np.asfortranarray(delp_cold.transpose())
     t_cold    = np.asfortranarray(t_cold.transpose())
 
-    #print(isrt,iend,jsrt,jend)
-    #print(np.shape(delp_cold),np.shape(t_cold))
-    #exit()
+    # need to put 1.0e-9 as first element in a/bk0
+    ak0[0] = 1.000000000000000E-009
+    bk0[0] = 1.000000000000000E-009
 
     # Initialize some computed fields to zero
     Atm_delp = 0.0*delp_cold[:, :, top:bot]  # initialize to zero (delp for sfcp)
-    Atm_q    = 0.0*qa  # initialize to zero (tracers... sphum=1)
-    Atm_pt   = 0.0*t_cold[: ,:, top:bot]  # initialize to zero (temperature)
-    Atm_ps   = 0.0*ps
-
-    #print(np.shape(Atm_delp))
-    #print(np.shape(Atm_q))
-    #print(np.shape(Atm_pt))
-    #pdb.set_trace()
+    Atm_q    = 0.0*qa                        # initialize to zero (tracers... sphum=1)
+    Atm_pt   = 0.0*t_cold[: ,:, top:bot]     # initialize to zero (temperature)
+    Atm_ps   = 0.0*ps                        # initialize to zero (need for remap_dwinds)
 
     remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
                       isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
@@ -163,9 +148,11 @@ if VertRemapWinds:
 
     Atm_u = 0.0*ud[:,:,top:bot] #Atm_u has levs=npz, ud has levs km
     Atm_v = 0.0*vd[:,:,top:bot]
+
     #vertically remap the dwinds
     remap_dwinds.main(levp, npz, ak0, bk0, ak, bk, ps, ud, vd,
                       isrt, iend, jsrt, jend, Atm_u, Atm_v, Atm_ps)
+
     print("Starting VertRemapWinds.... Done.")
 
 else:
@@ -217,35 +204,6 @@ if WriteData:
         var_to_duplicate = coldnc.variables["sphum"]
         coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
         coldnc.variables[new_var][:,:,:] = sphum
-
-# for debugging purposes.
-if Debug:
-    udiff = u - ud
-    var_to_duplicate = coldnc.variables["u_s"]
-    coldnc.createVariable("udiff", var_to_duplicate.datatype, ('nlev','latp','lon'))
-    coldnc.variables["udiff"][:,:,:] = udiff[:,:,:]
-    #print(f"udiff min/max={np.min(udiff[:,0:760,0:760])}/{np.max(udiff[:,0:760,0:760])}")
-    #print(f"udiff mean   ={np.mean(udiff[:,0:760,0:760])}")
-    #rmse = np.sqrt(np.mean(udiff**2))
-    #print(f"udiff rmse   ={rmse}")
-    #print(f"udiff count>1m/s   ={np.sum( np.abs(udiff) > 1 )}")
-    #max_index = np.argmax(udiff[:,0:760,0:760])
-    #i,j,k=np.unravel_index(max_index,udiff[:,0:760,0:760].shape)
-    #print(f"udiff[{i},{j},{k}]={udiff[i,j,k]}")
-    #print(f"u[{i},{j},{k}]={u[i,j,k]}")
-    #print(f"ud[{i},{j},{k}]={ud[i,j,k]}")
-    #us = np.transpose(u_s)
-    #us = us[top:bot,:,:]
-    #vs = np.transpose(v_s)
-    #vs = vs[top:bot,:,:]
-    #print(f"u_s[{i},{j},{k}]={us[i,j,k]}")
-    #print(f"v_s[{i},{j},{k}]={vs[i,j,k]}")
-
-    vdiff = v - vd
-    var_to_duplicate = coldnc.variables["v_w"]
-    coldnc.createVariable("vdiff", var_to_duplicate.datatype, ('nlev','lat','lonp'))
-    coldnc.variables["vdiff"][:,:,:] = vdiff[:,:,:]
-
 
 # close the nc files
 warmnc.close()
