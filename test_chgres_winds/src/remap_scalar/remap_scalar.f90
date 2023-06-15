@@ -71,7 +71,6 @@
 !   write(*,*) Atm_phis(1,2)
 !   write(*,*) Atm_phis(1,3)
 
-
  ! This is the order in my python code
  sphum   = 1
  liq_wat = 2
@@ -80,45 +79,6 @@
  rainwat = 5
  snowwat = 6
  graupel = 7
-
-
-!WRITE(*,*) "km:", KIND(km)
-!WRITE(*,*) "npz:", KIND(npz)
-!WRITE(*,*) "ncnst:", KIND(ncnst)
-!WRITE(*,*) "ak0:", KIND(ak0)
-!WRITE(*,*) "bk0:", KIND(bk0)
-!WRITE(*,*) "psc:", KIND(psc)
-!WRITE(*,*) "omga:", KIND(omga)
-!WRITE(*,*) "t_in:", KIND(t_in)
-!WRITE(*,*) "qa:", KIND(qa)
-!WRITE(*,*) "zh:", KIND(zh)
-!WRITE(*,*) "pe0:", KIND(pe0)
-!WRITE(*,*) "qn1:", KIND(qn1)
-!WRITE(*,*) "dp2:", KIND(dp2)
-!WRITE(*,*) "pe1:", KIND(pe1)
-!WRITE(*,*) "qp:", KIND(qp)
-!WRITE(*,*) "z500:", KIND(z500)
-!WRITE(*,*) "pn1:", KIND(pn1)
-!WRITE(*,*) "gz_fv:", KIND(gz_fv)
-!WRITE(*,*) "gz:", KIND(gz)
-!WRITE(*,*) "pn:", KIND(pn)
-!WRITE(*,*) "pn0:", KIND(pn0)
-!WRITE(*,*) "pst:", KIND(pst)
-!
-!WRITE(*,*) "Atm_ak:", KIND(Atm_ak)
-!WRITE(*,*) "Atm_bk:", KIND(Atm_bk)
-!WRITE(*,*) "Atm_phis:", KIND(Atm_phis)
-!WRITE(*,*) "Atm_delp:", KIND(Atm_delp)
-!WRITE(*,*) "Atm_pt:", KIND(Atm_pt)
-!WRITE(*,*) "Atm_q:", KIND(Atm_q)
-!WRITE(*,*) "is, ie, js, je:", KIND(is)
-!WRITE(*,*) "Atm_ptop:", KIND(Atm_ptop)
-!WRITE(*,*) "pst:", KIND(pst)
-!WRITE(*,*) "pn:", KIND(pn)
-!WRITE(*,*) "gz:", KIND(gz)
-!WRITE(*,*) "gz_fv:", KIND(gz_fv)
-
-WRITE(*,*) "Atm_ak:", Atm_ak
 
 !$OMP parallel do default(none) &
 !$OMP             shared(ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,z500,t_in, &
@@ -154,26 +114,11 @@ WRITE(*,*) "Atm_ak:", Atm_ak
         do k=km+k2-1, 2, -1
            if( Atm_phis(i,j).le.gz(k) .and. Atm_phis(i,j).ge.gz(k+1) ) then
               pst = pn(k) + (pn(k+1)-pn(k))*(gz(k)-Atm_phis(i,j))/(gz(k)-gz(k+1))
-              if(i==442+1 .and. j==693+1) then
-                  write(*,*) "k",k
-                  write(*,*) "pst",pst
-                  write(*,*) "pn",pn(k),pn(k+1)
-                  write(*,*) "gz",gz(k),gz(k+1)
-                  write(*,*) "zh",zh(i,j,k)
-                  write(*,*) "Atm_phis",Atm_phis(i,j)
-                  write(*,*) "gravity",grav
-                  write(*,*) "rdgas",rdgas
-                  write(*,*) "zvir",zvir
-                  write(*,*) "rvgas",rvgas
-                  write(*,*) ""
-              endif
-
               go to 123
            endif
         enddo
 123     Atm_ps(i,j) = exp(pst)
         if(i<= 3 .and. j<=3) then
-        write(*,*) "ps(",i,",",j,")",Atm_ps(i,j)  !100641.796875000
         endif
 
  ! ------------------
@@ -209,9 +154,7 @@ WRITE(*,*) "Atm_ak:", Atm_ak
      enddo
 
 ! map tracers
-!     write(*,*) "tracers starting..."
      tracers: do iq=1,ncnst
-       Atm_ps(i,j) = exp(pst)
         if (floor(qa(is,j,1,iq)) > -999) then !skip missing scalars
            do k=1,km
               do i=is,ie
@@ -235,8 +178,6 @@ WRITE(*,*) "Atm_ak:", Atm_ak
 !---------------------------------------------------
 ! Retrive temperature using  geopotential height from external data
 !---------------------------------------------------
-   !write(*,*) "iloop2 starting..."
-!write(*,*) "lippi debug 1"
    iloop2: do i=is,ie
 ! Make sure FV3 top is lower than GFS; can not do extrapolation above the top at this point
       if ( pn1(i,1) .lt. pn0(i,1) ) then
@@ -256,7 +197,6 @@ WRITE(*,*) "Atm_ak:", Atm_ak
          pn(k) = 2.*pn(km+1) - pn(l)
       enddo
 !-------------------------------------------------
-!write(*,*) "lippi debug 2"
 
       gz_fv(npz+1) = Atm_phis(i,j)
 
@@ -289,7 +229,6 @@ WRITE(*,*) "Atm_ak:", Atm_ak
       do k=1,npz+1
          Atm_peln(i,k,j) = pn1(i,k)
       enddo
-!write(*,*) "lippi debug 3"
 
 !----------------------------------------------------
 ! Compute true temperature using hydrostatic balance
@@ -297,11 +236,7 @@ WRITE(*,*) "Atm_ak:", Atm_ak
       !if (.not. data_source_fv3gfs .or. .not. present(t_in)) then
       if (data_source_fv3gfs) then
         do k=1,npz
-!#ifdef MULTI_GASES
-!           Atm_pt(i,j,k) = (gz_fv(k)-gz_fv(k+1))/( rdgas*(pn1(i,k+1)-pn1(i,k))*virq(Atm_q(i,j,k,:)) )
-!#else
            Atm_pt(i,j,k) = (gz_fv(k)-gz_fv(k+1))/( rdgas*(pn1(i,k+1)-pn1(i,k))*(1.+zvir*Atm_q(i,j,k,sphum)) )
-!#endif
         enddo
 !------------------------------
 ! Remap input T logarithmically in p.
@@ -310,20 +245,10 @@ WRITE(*,*) "Atm_ak:", Atm_ak
         do k=1,km
             qp(i,k) = t_in(i,j,k)
         enddo
-!write(*,*) "lippi debug 4"
 
         call mappm(km, log(pe0), qp, npz, log(pe1), qn1, is,ie, 2, 4, Atm_ptop) ! pn0 and pn1 are higher-precision
                                                                                 ! and cannot be passed to mappm
         do k=1,npz
-            if(i==443 .and. j==694 .and. k==npz) then
-            write(*,*) "log(pe0)",log(pe0(i,k))
-            write(*,*) "qp(",i,k,")=",qp(i,k)
-            write(*,*) "log(pe1)",log(pe1(i,k))
-            write(*,*) "qn1",qn1(i,k)
-            write(*,*) "Atm_ptop",Atm_ptop
-            write(*,*) ""
-            endif
-
             Atm_pt(i,j,k) = qn1(i,k)
         enddo
       endif
@@ -332,19 +257,12 @@ WRITE(*,*) "Atm_ak:", Atm_ak
             Atm_delz(i,j,k) = (gz_fv(k+1) - gz_fv(k)) / grav
          enddo
       endif
-!write(*,*) "lippi debug 5"
-      if(i<=3 .and. j<=3) then
-      write(*,*) "Atm_pt(",i,",",j,",",npz,")",Atm_pt(i,j,npz)  !
-      endif
-      if(i==442+1 .and. j==693+1) then
-      write(*,*) "Atm_pt(",i,",",j,",",npz,")",Atm_pt(i,j,npz)  !
-      endif
 
    enddo  iloop2  ! i-loop
 
 !-----------------------------------------------------------------------
 ! seperate cloud water and cloud ice from Jan-Huey Chen's HiRAM code
-! only use for NCEP IC and GFDL microphy 
+! only use for NCEP IC and GFDL microphy
 !-----------------------------------------------------------------------
    if (.not. data_source_fv3gfs) then
       if ((nwat .eq. 3 .or. nwat .eq. 6) .and. (ncep_ic .or. nggps_ic)) then
@@ -357,7 +275,7 @@ WRITE(*,*) "Atm_ak:", Atm_ak
                if ( Atm_pt(i,j,k) > 273.16 ) then       ! > 0C all liq_wat
                   Atm_q(i,j,k,liq_wat) = qn1(i,k)
                   Atm_q(i,j,k,ice_wat) = 0.
-!#ifdef ORIG_CLOUDS_PART 
+!#ifdef ORIG_CLOUDS_PART
 !               else if ( Atm_pt(i,j,k) < 258.16 ) then  ! < -15C all ice_wat
 !                  Atm_q(i,j,k,liq_wat) = 0.
 !                  Atm_q(i,j,k,ice_wat) = qn1(i,k)
@@ -425,10 +343,6 @@ WRITE(*,*) "Atm_ak:", Atm_ak
    endif
 
    5000 continue
-
-  write(*,*) "Atm_pt(1,1,1)",Atm_pt(1,1,1)
-  !write(*,*) "Atm_pt(0,693,442)",Atm_pt(693+1,442+1,0+1)
-  write(*,*) "Atm_pt(0,442,693)",Atm_pt(442+1,693+1,npz)
 
  end subroutine main
 

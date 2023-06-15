@@ -15,13 +15,19 @@ tic = tictoc.tic()
 #akbk = str(sys.argv[4])  # ./fv_core.res.nc
 warm = str("./fv_core.res.tile1.nc")
 cold = str("./out.atm.tile1.nc")
+#trcr = str("./fv_tracer.res.tile1.nc"
 grid = str("./C768_grid.tile1.nc")
 akbk = str("./fv_core.res.nc")
+akbkcold = str("./gfs_ctrl.nc")
+orog = str("./C768_oro_data.tile1.nc")
 
 warmnc = Dataset(warm)
 coldnc = Dataset(cold, mode="a")
+#trcrnc = Dataset(trcr, mode="a")  # sphum goes in here
 akbknc = Dataset(akbk)
 gridnc = Dataset(grid)
+akbkcoldnc = Dataset(akbkcold)
+orognc = Dataset(orog)
 
 ColdStartWinds = True
 VertRemapScalar = True
@@ -33,7 +39,7 @@ top=1; bot=128
 
 # STEP 1. ROTATE THE WINDS FROM CHGRES
 if ColdStartWinds:
-    print("Starting ColdStartWinds.... ", end="")
+    print("Starting ColdStartWinds.... ",end="\r")
     # Data from warm restarts
     u = np.float64(warmnc["u"][0, :, :, :])
     v = np.float64(warmnc["v"][0, :, :, :])
@@ -69,25 +75,29 @@ if ColdStartWinds:
     #rotate winds to model d-grid (~30s; nodes=2; cpus=128)
     chgres_winds.main(gridx,gridy,u_s,v_s,u_w,v_w,ud,vd)
 
-    print("Done.")
+    print("Starting ColdStartWinds.... Done.")
 
 
 # STEP 2. VERTICAL REMAPPING OF SCALARS
 if VertRemapScalar:
     #print("Starting VertRemapScalar... ", end="")
-    print("Starting VertRemapScalar... ")
+    print("Starting VertRemapScalar... ", end="\r")
 
     # Data from cold restarts: lippi here: npz=127 km=128
     levp = 128  # (km)
     npz  = 127
+    ak0  = np.float64(akbkcoldnc["vcoord"][0, :])       # ( lev,         ) == (128,         )
+    bk0  = np.float64(akbkcoldnc["vcoord"][1, :])       # ( lev,         ) == (128,         )
     ak   = np.float64(akbknc["ak"][0, :])       # ( lev,         ) == (128,         )
     bk   = np.float64(akbknc["bk"][0, :])       # ( lev,         ) == (128,         )
     ps   = np.float64(coldnc["ps"][:, :])       # (      lat, lon) == (     768, 768)
     zh   = np.float64(coldnc["zh"][:, :, :])    # (levp, lat, lon) == (129, 768, 768)
     omga = np.float64(coldnc["w"][:, :, :])     # ( lev, lat, lon) == (128, 768, 768)
-    #temp = np.float64(coldnc["t"][:, :, :])     # ( lev, lat, lon) == (128, 768, 768)
-    delp_cold = np.float64(coldnc["delp"][top:bot, :, :]) # (127, 768, 768)
-    t_cold    = np.float64(coldnc["t"][top:bot, :, :])    # (128, 768, 768)
+    delp_cold = np.float64(coldnc["delp"][:, :, :]) # (127, 768, 768)
+    t_cold    = np.float64(coldnc["t"][:, :, :])    # (128, 768, 768)
+    Atm_phis  = np.float64(warmnc["phis"][0, :, :])
+    #t_cold = np.asfortranarray(coldnc["t"].T)
+    #Atm_phis = np.asfortranarray(warmnc["phis"][0].T)
 
     sphum   = np.float64(coldnc["sphum"][:, :, :]) # ( lev, lat, lon) == (128, 768, 768)
     liq_wat = np.float64(coldnc["liq_wat"][:, :, :])
@@ -100,9 +110,15 @@ if VertRemapScalar:
     # Fortran wants everything transposed and in fortran array type
     ak   = np.asfortranarray(ak)  # Don't transpose 1D array
     bk   = np.asfortranarray(bk)  # Don't transpose 1D array
+    ak0  = np.asfortranarray(ak0)
+    bk0  = np.asfortranarray(bk0)
+    Atm_phis = np.asfortranarray(np.transpose(Atm_phis))
 
-    ak0 = np.insert(ak, 0, 1.000000000000000E-009)
-    bk0 = np.insert(bk, 0, 1.000000000000000E-009)
+    #ak0 = np.insert(ak, 0, 1.000000000000000E-009)
+    #bk0 = np.insert(bk, 0, 1.000000000000000E-009)
+    ak0[0] = 1.000000000000000E-009
+    bk0[0] = 1.000000000000000E-009
+
 
     ps   = np.asfortranarray(ps.transpose())
     zh   = np.asfortranarray(zh.transpose())
@@ -121,56 +137,29 @@ if VertRemapScalar:
     delp_cold = np.asfortranarray(delp_cold.transpose())
     t_cold    = np.asfortranarray(t_cold.transpose())
 
-    print(isrt,iend,jsrt,jend)
-    print(np.shape(delp_cold),np.shape(t_cold))
+    #print(isrt,iend,jsrt,jend)
+    #print(np.shape(delp_cold),np.shape(t_cold))
     #exit()
 
     # Initialize some computed fields to zero
-    Atm_delp = 0.0*delp_cold  # initialize to zero (delp for sfcp)
+    Atm_delp = 0.0*delp_cold[:, :, top:bot]  # initialize to zero (delp for sfcp)
     Atm_q    = 0.0*qa  # initialize to zero (tracers... sphum=1)
-    Atm_pt   = 0.0*t_cold  # initialize to zero (temperature)
+    Atm_pt   = 0.0*t_cold[: ,:, top:bot]  # initialize to zero (temperature)
 
     #print(np.shape(Atm_delp))
     #print(np.shape(Atm_q))
     #print(np.shape(Atm_pt))
+    #pdb.set_trace()
 
-    remap_scalar.main(levp, npz, ntracers, ak0, bk0, ps, qa, zh, omga, t_cold,
-                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp)
-    print("Done.")
+    remap_scalar.main(levp, npz, ntracers, ak0, bk0,ak,bk, ps, qa, zh, omga, t_cold,
+                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis)
+
+    print("Starting VertRemapScalar... Done.")
 
 
 ## STEP 3. VERTICAL REMAPPING OF WINDS
 if VertRemapWinds:
-
-    ## Define the Atm derived type variable
-    #class fv_atmos_type:
-    #    def __init__(self):
-    #        self.bd = bd
-    #        self.
-    #        self.
-    #Atm = fv_atmos_type(bd=bd)
-
-    km = km
-    npz = km + 1
-    ncnst = 7
-    ak0 = np.float64(akbknc["ak"][0, :]) # (128,)
-    bk0 = np.float64(akbknc["bk"][0, :]) # (128,)
-    psc = np.float64(coldnc["ps"][:, :])  # (768, 768)
-    #ak = ak0
-    #bk = bk0
-    #ps
-    #u
-    # Fortran wants everything transposed and in fortran array type
-    # Vars not really used, but could be useful for debugging.
-    #T = np.float64(warmnc["T"][0, :, :, :])
-    #delp = np.float64(warmnc["delp"][0, :, :, :])
-    #t_cold    = np.float64(coldnc["t"][:, :, :])    # (128, 768, 768)
-    #delp_cold = np.float64(coldnc["delp"][:, :, :]) # (127, 768, 768)
-    #ps_cold   = np.float64(coldnc["ps"][:, :])      # (768, 768)
-    #t_cold    = np.asfortranarray(t_cold.transpose())
-    #delp_cold = np.asfortranarray(delp_cold.transpose())
-    #ps_cold   = np.asfortranarray(ps_cold.transpose())
-
+    print("Not ready")
 
     #vertically remap the dwinds
     #remap_dwinds.main(km, ak0, bk0, psc, ud, vd, npz, ak, bk, ps, u)
@@ -183,7 +172,7 @@ if WriteData:
     # redefining the shape of the array, finally, assign ud/vd into the u/v variable in nc file.
 
     # For ud
-    new_var = "u_cold2fv3"
+    new_var = "u_cold"
     ud = np.transpose(ud)
     ud = ud[top:bot,:,:]
     var_to_duplicate = coldnc.variables["u_s"]
@@ -191,7 +180,7 @@ if WriteData:
     coldnc.variables[new_var][:,:,:] = ud
 
     # For vd
-    new_var = "v_cold2fv3"
+    new_var = "v_cold"
     vd = np.transpose(vd)
     vd = vd[top:bot,:,:]
     var_to_duplicate = coldnc.variables["v_w"]
@@ -200,34 +189,26 @@ if WriteData:
 
     # For Temperature
     new_var = "t_cold2fv3"
-    temp = np.transpose(Atm_pt)
-    #temp = temp[top:bot,:,:]
-    temp = temp[:,:,:]
+    t_cold = np.transpose(Atm_pt)
     var_to_duplicate = coldnc.variables["t"]
-    coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon')) 
-    coldnc.variables[new_var][:,:,:] = temp
-    print(f"temp[0,0,0]={temp[0,0,0]}")
-    print(f"temp[0,693,442]={temp[0,693,442]}")
-
-    temp = np.float64(coldnc["t"][:, :, :])     # ( lev, lat, lon) == (128, 768, 768)
-    sphum   = np.float64(coldnc["sphum"][:, :, :]) # ( lev, lat, lon) == (128, 768, 768)
-    # For sphum
-    new_var = "sphum_cold2fv3"
-    sphum = np.transpose(Atm_q)
-    sphum = sphum[0,top:bot,:,:] #the first index (i.e., 0) should be sphum
-    #sphum = sphum[0,:,:,:] #the first index (i.e., 0) should be sphum
-    var_to_duplicate = coldnc.variables["sphum"]
     coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
-    coldnc.variables[new_var][:,:,:] = sphum
+    coldnc.variables[new_var][:,:,:] = t_cold
 
     # For delp
     new_var = "delp_cold2fv3"
-    delp = np.transpose(Atm_delp)
-    delp = delp[:,:,:]
-    #delp = delp[:,:,:]
+    delp = Atm_delp.T
     var_to_duplicate = coldnc.variables["delp"]
     coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
     coldnc.variables[new_var][:,:,:] = delp
+
+    # For sphum
+    new_var = "sphum_cold2fv3"
+    sphum = Atm_q[:,:,:,0].T
+    sphum = sphum[0:bot-1,:,:] #not sure why this needs to be different
+    #sphum[-1,442,693]
+    var_to_duplicate = coldnc.variables["sphum"]
+    coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
+    coldnc.variables[new_var][:,:,:] = sphum
 
 # for debugging purposes.
 if Debug:
