@@ -31,29 +31,6 @@
  psd = psc
  !psd = Atm_ps
 
-write(*,*) "Shape and Kind of Variables:"
-write(*,*) "is:", shape(is), ", kind=", kind(is)
-write(*,*) "ie:", shape(ie), ", kind=", kind(ie)
-write(*,*) "js:", shape(js), ", kind=", kind(js)
-write(*,*) "je:", shape(je), ", kind=", kind(je)
-write(*,*) "km:", shape(km), ", kind=", kind(km)
-write(*,*) "npz:", shape(npz), ", kind=", kind(npz)
-write(*,*) "ak0:", shape(ak0), ", kind=", kind(ak0)
-write(*,*) "bk0:", shape(bk0), ", kind=", kind(bk0)
-write(*,*) "psc:", shape(psc), ", kind=", kind(psc)
-write(*,*) "Atm_ps:", shape(Atm_ps), ", kind=", kind(Atm_ps)
-write(*,*) "ud:", shape(ud), ", kind=", kind(ud)
-write(*,*) "vd:", shape(vd), ", kind=", kind(vd)
-write(*,*) "Atm_ak:", shape(Atm_ak), ", kind=", kind(Atm_ak)
-write(*,*) "Atm_bk:", shape(Atm_bk), ", kind=", kind(Atm_bk)
-write(*,*) "Atm_u:", shape(Atm_u), ", kind=", kind(Atm_u)
-write(*,*) "Atm_v:", shape(Atm_v), ", kind=", kind(Atm_v)
-write(*,*) "Atm_ptop:", shape(Atm_ptop), ", kind=", kind(Atm_ptop)
-write(*,*) "psd:", shape(psd), ", kind=", kind(psd)
-write(*,*) "qn1:", shape(qn1), ", kind=", kind(qn1)
-write(*,*) "pe0:", shape(pe0), ", kind=", kind(pe0)
-write(*,*) "pe1:", shape(pe1), ", kind=", kind(pe1)
-
 !$OMP parallel do default(none) &
 !$OMP                          shared(is,ie,js,je,npz,km,ak0,bk0,psc,psd,ud,vd,Atm_ak, &
 !$OMP                                 Atm_bk,Atm_u,Atm_v,Atm_ps,Atm_ptop) &

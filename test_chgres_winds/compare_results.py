@@ -128,8 +128,8 @@ if ugrd_sfc:
     print(var0[693,442])
     print(var1[693,442])
     print(var2[693,442])
-    print(np.max(diff_chgreswinds_minus_cold2fv3[0:760,0:760]))
-    print(np.max(diff_coldstartwinds_minus_cold2fv3[0:760,0:760]))
+    print(np.max(diff_chgreswinds_minus_cold2fv3[1:760,1:760]))
+    print(np.max(diff_coldstartwinds_minus_cold2fv3[1:760,1:760]))
 
     # Create new variables to store the diffs in.
     var_to_duplicate = expnc.variables["u_cold2fv3"]
