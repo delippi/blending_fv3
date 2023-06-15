@@ -31,12 +31,14 @@
 !$OMP          shared(is,ie,js,je,ks,ke,gridx,gridy,ud,vd,u_s,v_s,u_w,v_w) &
 !$OMP          private(p1,p2,p3,e1,e2,ex,ey)
  do k=ks,ke
-   do j=js,je+1 !lats
+   do j=js,je!+1 !lats
      do i=is,ie !lons
+       if(i .lt. ie-1 .and. j .le. je) then
        p1(1) = gridx(i,  j)*deg2rad
        p1(2) = gridy(i,  j)*deg2rad
        p2(1) = gridx(i+1,j)*deg2rad
        p2(2) = gridy(i+1,j)*deg2rad
+       endif
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e1)
        call get_latlon_vector(p3, ex, ey)
@@ -48,11 +50,13 @@
      enddo
    enddo
    do j=js,je
-     do i=is,ie+1
+     do i=is,ie!+1
+       if(i .lt. ie .and. j .le. je-1) then
        p1(1) = gridx(i,  j)*deg2rad
        p1(2) = gridy(i,  j)*deg2rad
        p2(1) = gridx(i,j+1)*deg2rad
        p2(2) = gridy(i,j+1)*deg2rad
+       endif
        call mid_pt_sphere(p1, p2, p3)
        call get_unit_vect2(p1, p2, e2)
        call get_latlon_vector(p3, ex, ey)

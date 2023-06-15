@@ -1,38 +1,42 @@
-! subroutine main(km, ak0, bk0, psc, ud, vd, npz, ak, bk, ps, u)
- subroutine main(km, npz, ak0, bk0, psc, ud, vd, is, ie, js, je, Atm_u, Atm_v, Atm_ps)
-  use omp_lib
+ subroutine main(km, npz, ak0, bk0, Atm_ak, Atm_bk, psc, ud, vd, is, ie, js, je, Atm_u, Atm_v, Atm_ps)
+
  use ISO_FORTRAN_ENV
  use omp_lib
  use, intrinsic :: ieee_arithmetic
  implicit none
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer,                          intent(IN)    ::  km       ! 128
  integer,                          intent(IN)    ::  npz      ! 127
- real,         dimension(:),       intent(IN)    ::  ak0      ! (129,)
- real,         dimension(:),       intent(IN)    ::  bk0      ! (129,)
- real,         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
- real(kind=8), dimension(:,:),     intent(IN)    ::  Atm_ps   !
- real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_u    !
- real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_v    !
- real(kind=8), dimension(:,:,:),   intent(IN)    ::  ud
- real(kind=8), dimension(:,:,:),   intent(IN)    ::  vd
+
+ real(kind=8),         dimension(:),       intent(IN)    ::  ak0      ! (129,)
+ real(kind=8),         dimension(:),       intent(IN)    ::  bk0      ! (129,)
+ real(kind=8),         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
+ real(kind=8),         dimension(:,:),     intent(IN)    ::  Atm_ps   !
+ real(kind=8),         dimension(:,:,:),   intent(INOUT) ::  Atm_u    !
+ real(kind=8),         dimension(:,:,:),   intent(INOUT) ::  Atm_v    !
+ real(kind=8),         dimension(:,:,:),   intent(IN)    ::  ud
+ real(kind=8),         dimension(:,:,:),   intent(IN)    ::  vd
+ real(kind=8),         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
+ real(kind=8),         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
  integer,                          intent(IN)    ::  is, ie, js, je
 
- real                                         ::  Atm_ptop
+ real(kind=8)                                 ::  Atm_ptop
  real(kind=8), dimension(is:ie,js:je)         ::  psd
 
- real, dimension(1:npz+1)      ::  Atm_ak,Atm_bk !128
- real, dimension(is:ie,1:npz)  ::  dp2,qn1
- real, dimension(is:ie,1:km+1) ::  pe0,pe1,pn0,pn1
- real, dimension(is:ie,js:je)  ::  z500,qp
+ !real(kind=8), dimension(1:npz+1)      ::  Atm_ak,Atm_bk !128
+ real(kind=8), dimension(is:ie,1:npz)  ::  dp2,qn1
+ real(kind=8), dimension(is:ie,1:km+1) ::  pe0,pe1,pn0,pn1
+ real(kind=8), dimension(is:ie,js:je)  ::  z500,qp
 
  integer :: i,j,k,itoa
 
- Atm_ak = ak0(2:km+1)
- Atm_bk = bk0(2:km+1)
+ !Atm_ak = ak0(2:km+1)
+ !Atm_bk = bk0(2:km+1)
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
 
  psd = psc
+ !psd = Atm_ps
 
 !$OMP parallel do default(none) &
 !$OMP                          shared(is,ie,js,je,npz,km,ak0,bk0,psc,psd,ud,vd,Atm_ak, &
@@ -96,6 +100,7 @@
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
 !! one set of vertical levels to another.
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
+ use ISO_FORTRAN_ENV
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
@@ -108,21 +113,21 @@
 !      in the new vertical coordinate
 
  integer, intent(in):: i1, i2, km, kn, kord, iv
- real, intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
+ real(kind=8), intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
                                                       !!      surface in the ORIGINAL vertical coordinate
                                                       !< pe2: pressure at layer edges from model top to bottom
                                                       !!      surface in the NEW vertical coordinate
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
- real, intent(in )::  q1(i1:i2,km)
- real, intent(out)::  q2(i1:i2,kn)
- real, intent(IN) ::  ptop
+ real(kind=8), intent(in )::  q1(i1:i2,km)
+ real(kind=8), intent(out)::  q2(i1:i2,kn)
+ real(kind=8), intent(IN) ::  ptop
 ! local
-      real  qs(i1:i2)
-      real dp1(i1:i2,km)
-      real a4(4,i1:i2,km)
+      real(kind=8)  qs(i1:i2)
+      real(kind=8) dp1(i1:i2,km)
+      real(kind=8) a4(4,i1:i2,km)
       integer i, k, l
       integer k0, k1
-      real pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
+      real(kind=8) pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
 
       do k=1,km
          do i=i1,i2
@@ -227,24 +232,26 @@
  end subroutine mappm
 
  subroutine cs_profile(qs, a4, delp, km, i1, i2, iv, kord)
+ use ISO_FORTRAN_ENV
 ! Optimized vertical profile reconstruction:
 ! Latest: Apr 2008 S.-J. Lin, NOAA/GFDL
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2
  integer, intent(in):: km      !< vertical dimension
  integer, intent(in):: iv      !< iv =-1: winds
                                !< iv = 0: positive definite scalars
                                !< iv = 1: others
  integer, intent(in):: kord
- real, intent(in)   ::   qs(i1:i2)
- real, intent(in)   :: delp(i1:i2,km)     !< layer pressure thickness
- real, intent(inout):: a4(4,i1:i2,km)     !< Interpolated values
+ real(kind=8), intent(in)   ::   qs(i1:i2)
+ real(kind=8), intent(in)   :: delp(i1:i2,km)     !< layer pressure thickness
+ real(kind=8), intent(inout):: a4(4,i1:i2,km)     !< Interpolated values
 !-----------------------------------------------------------------------
  logical, dimension(i1:i2,km):: extm, ext5, ext6
- real  gam(i1:i2,km)
- real    q(i1:i2,km+1)
- real   d4(i1:i2)
- real   bet, a_bot, grat
- real   pmp_1, lac_1, pmp_2, lac_2, x0, x1
+ real(kind=8) gam(i1:i2,km)
+ real(kind=8)   q(i1:i2,km+1)
+ real(kind=8)  d4(i1:i2)
+ real(kind=8)  bet, a_bot, grat
+ real(kind=8)  pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
 
  if ( iv .eq. -2 ) then
@@ -628,13 +635,276 @@
 
  end subroutine cs_profile
 
-subroutine cs_limiters(im, extm, a4, iv)
+ subroutine ppm_profile(a4, delp, km, i1, i2, iv, kord)
+ use ISO_FORTRAN_ENV
+
+! !INPUT PARAMETERS:
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+ integer, intent(in):: iv      !< iv =-1: winds
+                               !! iv = 0: positive definite scalars
+                               !! iv = 1: others
+                               !! iv = 2: temp (if remap_t) and w (iv=-2)
+ integer, intent(in):: i1      !< Starting longitude
+ integer, intent(in):: i2      !< Finishing longitude
+ integer, intent(in):: km      !< vertical dimension
+ integer, intent(in):: kord    !< Order (or more accurately method no.):
+                               !!
+ real(kind=8), intent(in):: delp(i1:i2,km)     !< layer pressure thickness
+
+! !INPUT/OUTPUT PARAMETERS:
+ real(kind=8), intent(inout):: a4(4,i1:i2,km)  !< Interpolated values
+
+! DESCRIPTION:
+!
+!   Perform the piecewise parabolic reconstruction
+!
+! !REVISION HISTORY:
+! S.-J. Lin   revised at GFDL 2007
+!-----------------------------------------------------------------------
+! local arrays:
+      real(kind=8)   dc(i1:i2,km)
+      real(kind=8)   h2(i1:i2,km)
+      real(kind=8) delq(i1:i2,km)
+      real(kind=8)  df2(i1:i2,km)
+      real(kind=8)   d4(i1:i2,km)
+
+! local scalars:
+      integer i, k, km1, lmt, it
+      real(kind=8) fac
+      real(kind=8) a1, a2, c1, c2, c3, d1, d2
+      real(kind=8) qm, dq, lac, qmp, pmp
+
+      km1 = km - 1
+       it = i2 - i1 + 1
+
+      do k=2,km
+         do i=i1,i2
+            delq(i,k-1) =   a4(1,i,k) - a4(1,i,k-1)
+              d4(i,k  ) = delp(i,k-1) + delp(i,k)
+         enddo
+      enddo
+
+      do k=2,km1
+         do i=i1,i2
+                 c1  = (delp(i,k-1)+0.5*delp(i,k))/d4(i,k+1)
+                 c2  = (delp(i,k+1)+0.5*delp(i,k))/d4(i,k)
+            df2(i,k) = delp(i,k)*(c1*delq(i,k) + c2*delq(i,k-1)) /      &
+                                    (d4(i,k)+delp(i,k+1))
+            dc(i,k) = sign( min(abs(df2(i,k)),              &
+                            max(a4(1,i,k-1),a4(1,i,k),a4(1,i,k+1))-a4(1,i,k),  &
+                  a4(1,i,k)-min(a4(1,i,k-1),a4(1,i,k),a4(1,i,k+1))), df2(i,k) )
+         enddo
+      enddo
+
+!-----------------------------------------------------------
+! 4th order interpolation of the provisional cell edge value
+!-----------------------------------------------------------
+
+      do k=3,km1
+         do i=i1,i2
+            c1 = delq(i,k-1)*delp(i,k-1) / d4(i,k)
+            a1 = d4(i,k-1) / (d4(i,k) + delp(i,k-1))
+            a2 = d4(i,k+1) / (d4(i,k) + delp(i,k))
+            a4(2,i,k) = a4(1,i,k-1) + c1 + 2./(d4(i,k-1)+d4(i,k+1)) *    &
+                      ( delp(i,k)*(c1*(a1 - a2)+a2*dc(i,k-1)) -          &
+                        delp(i,k-1)*a1*dc(i,k  ) )
+         enddo
+      enddo
+
+!     if(km>8 .and. kord>4) call steepz(i1, i2, km, a4, df2, dc, delq, delp, d4)
+
+! Area preserving cubic with 2nd deriv. = 0 at the boundaries
+! Top
+      do i=i1,i2
+         d1 = delp(i,1)
+         d2 = delp(i,2)
+         qm = (d2*a4(1,i,1)+d1*a4(1,i,2)) / (d1+d2)
+         dq = 2.*(a4(1,i,2)-a4(1,i,1)) / (d1+d2)
+         c1 = 4.*(a4(2,i,3)-qm-d2*dq) / ( d2*(2.*d2*d2+d1*(d2+3.*d1)) )
+         c3 = dq - 0.5*c1*(d2*(5.*d1+d2)-3.*d1*d1)
+         a4(2,i,2) = qm - 0.25*c1*d1*d2*(d2+3.*d1)
+! Top edge:
+!-------------------------------------------------------
+         a4(2,i,1) = d1*(2.*c1*d1**2-c3) + a4(2,i,2)
+!-------------------------------------------------------
+!        a4(2,i,1) = (12./7.)*a4(1,i,1)-(13./14.)*a4(1,i,2)+(3./14.)*a4(1,i,3)
+!-------------------------------------------------------
+! No over- and undershoot condition
+         a4(2,i,2) = max( a4(2,i,2), min(a4(1,i,1), a4(1,i,2)) )
+         a4(2,i,2) = min( a4(2,i,2), max(a4(1,i,1), a4(1,i,2)) )
+         dc(i,1) =  0.5*(a4(2,i,2) - a4(1,i,1))
+      enddo
+
+! Enforce monotonicity  within the top layer
+
+      if( iv==0 ) then
+         do i=i1,i2
+            a4(2,i,1) = max(0., a4(2,i,1))
+            a4(2,i,2) = max(0., a4(2,i,2))
+         enddo
+      elseif( iv==-1 ) then
+         do i=i1,i2
+            if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
+         enddo
+      elseif( abs(iv)==2 ) then
+         do i=i1,i2
+            a4(2,i,1) = a4(1,i,1)
+            a4(3,i,1) = a4(1,i,1)
+         enddo
+      endif
+
+! Bottom
+! Area preserving cubic with 2nd deriv. = 0 at the surface
+      do i=i1,i2
+         d1 = delp(i,km)
+         d2 = delp(i,km1)
+         qm = (d2*a4(1,i,km)+d1*a4(1,i,km1)) / (d1+d2)
+         dq = 2.*(a4(1,i,km1)-a4(1,i,km)) / (d1+d2)
+         c1 = (a4(2,i,km1)-qm-d2*dq) / (d2*(2.*d2*d2+d1*(d2+3.*d1)))
+         c3 = dq - 2.0*c1*(d2*(5.*d1+d2)-3.*d1*d1)
+         a4(2,i,km) = qm - c1*d1*d2*(d2+3.*d1)
+! Bottom edge:
+!-----------------------------------------------------
+         a4(3,i,km) = d1*(8.*c1*d1**2-c3) + a4(2,i,km)
+!        dc(i,km) = 0.5*(a4(3,i,km) - a4(1,i,km))
+!-----------------------------------------------------
+!        a4(3,i,km) = (12./7.)*a4(1,i,km)-(13./14.)*a4(1,i,km-1)+(3./14.)*a4(1,i,km-2)
+! No over- and under-shoot condition
+         a4(2,i,km) = max( a4(2,i,km), min(a4(1,i,km), a4(1,i,km1)) )
+         a4(2,i,km) = min( a4(2,i,km), max(a4(1,i,km), a4(1,i,km1)) )
+         dc(i,km) = 0.5*(a4(1,i,km) - a4(2,i,km))
+      enddo
+
+
+! Enforce constraint on the "slope" at the surface
+
+!#ifdef BOT_MONO
+!      do i=i1,i2
+!         a4(4,i,km) = 0
+!         if( a4(3,i,km) * a4(1,i,km) <= 0. ) a4(3,i,km) = 0.
+!         d1 = a4(1,i,km) - a4(2,i,km)
+!         d2 = a4(3,i,km) - a4(1,i,km)
+!         if ( d1*d2 < 0. ) then
+!              a4(2,i,km) = a4(1,i,km)
+!              a4(3,i,km) = a4(1,i,km)
+!         else
+!              dq = sign(min(abs(d1),abs(d2),0.5*abs(delq(i,km-1))), d1)
+!              a4(2,i,km) = a4(1,i,km) - dq
+!              a4(3,i,km) = a4(1,i,km) + dq
+!         endif
+!      enddo
+!#else
+      if( iv==0 ) then
+          do i=i1,i2
+             a4(2,i,km) = max(0.,a4(2,i,km))
+             a4(3,i,km) = max(0.,a4(3,i,km))
+          enddo
+      elseif( iv<0 ) then
+          do i=i1,i2
+             if( a4(1,i,km)*a4(3,i,km) <= 0. )  a4(3,i,km) = 0.
+          enddo
+      endif
+!#endif
+
+   do k=1,km1
+      do i=i1,i2
+         a4(3,i,k) = a4(2,i,k+1)
+      enddo
+   enddo
+
+!-----------------------------------------------------------
+! f(s) = AL + s*[(AR-AL) + A6*(1-s)]         ( 0 <= s  <= 1 )
+!-----------------------------------------------------------
+! Top 2 and bottom 2 layers always use monotonic mapping
+      do k=1,2
+         do i=i1,i2
+            a4(4,i,k) = 3.*(2.*a4(1,i,k) - (a4(2,i,k)+a4(3,i,k)))
+         enddo
+         call ppm_limiters(dc(i1,k), a4(1,i1,k), it, 0)
+      enddo
+
+      if(kord >= 7) then
+!-----------------------
+! Huynh's 2nd constraint
+!-----------------------
+      do k=2,km1
+         do i=i1,i2
+! Method#1
+!           h2(i,k) = delq(i,k) - delq(i,k-1)
+! Method#2 - better
+            h2(i,k) = 2.*(dc(i,k+1)/delp(i,k+1) - dc(i,k-1)/delp(i,k-1))  &
+                     / ( delp(i,k)+0.5*(delp(i,k-1)+delp(i,k+1)) )        &
+                     * delp(i,k)**2
+! Method#3
+!!!            h2(i,k) = dc(i,k+1) - dc(i,k-1)
+         enddo
+      enddo
+
+      fac = 1.5           ! original quasi-monotone
+
+      do k=3,km-2
+        do i=i1,i2
+! Right edges
+!        qmp   = a4(1,i,k) + 2.0*delq(i,k-1)
+!        lac   = a4(1,i,k) + fac*h2(i,k-1) + 0.5*delq(i,k-1)
+!
+         pmp   = 2.*dc(i,k)
+         qmp   = a4(1,i,k) + pmp
+         lac   = a4(1,i,k) + fac*h2(i,k-1) + dc(i,k)
+         a4(3,i,k) = min(max(a4(3,i,k), min(a4(1,i,k), qmp, lac)),    &
+                                        max(a4(1,i,k), qmp, lac) )
+! Left  edges
+!        qmp   = a4(1,i,k) - 2.0*delq(i,k)
+!        lac   = a4(1,i,k) + fac*h2(i,k+1) - 0.5*delq(i,k)
+!
+         qmp   = a4(1,i,k) - pmp
+         lac   = a4(1,i,k) + fac*h2(i,k+1) - dc(i,k)
+         a4(2,i,k) = min(max(a4(2,i,k),  min(a4(1,i,k), qmp, lac)),   &
+                     max(a4(1,i,k), qmp, lac))
+!-------------
+! Recompute A6
+!-------------
+         a4(4,i,k) = 3.*(2.*a4(1,i,k) - (a4(2,i,k)+a4(3,i,k)))
+        enddo
+! Additional constraint to ensure positivity when kord=7
+         if (iv == 0 .and. kord >= 6 )                      &
+             call ppm_limiters(dc(i1,k), a4(1,i1,k), it, 2)
+      enddo
+
+      else
+
+         lmt = kord - 3
+         lmt = max(0, lmt)
+         if (iv == 0) lmt = min(2, lmt)
+
+         do k=3,km-2
+            if( kord /= 4) then
+              do i=i1,i2
+                 a4(4,i,k) = 3.*(2.*a4(1,i,k) - (a4(2,i,k)+a4(3,i,k)))
+              enddo
+            endif
+            if(kord/=6) call ppm_limiters(dc(i1,k), a4(1,i1,k), it, lmt)
+         enddo
+      endif
+
+      do k=km1,km
+         do i=i1,i2
+            a4(4,i,k) = 3.*(2.*a4(1,i,k) - (a4(2,i,k)+a4(3,i,k)))
+         enddo
+         call ppm_limiters(dc(i1,k), a4(1,i1,k), it, 0)
+      enddo
+
+ end subroutine ppm_profile
+
+ subroutine cs_limiters(im, extm, a4, iv)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in) :: im
  integer, intent(in) :: iv
  logical, intent(in) :: extm(im)
- real , intent(inout) :: a4(4,im)   !< PPM array
+ real(kind=8), intent(inout) :: a4(4,im)   !< PPM array
 ! LOCAL VARIABLES:
- real  da1, da2, a6da, r12
+ real(kind=8) da1, da2, a6da, r12
  integer i
 
  if ( iv==0 ) then
@@ -704,4 +974,104 @@ subroutine cs_limiters(im, extm, a4, iv)
     enddo
  endif
  end subroutine cs_limiters
+
+ subroutine ppm_limiters(dm, a4, itot, lmt)
+ use ISO_FORTRAN_ENV
+
+! INPUT PARAMETERS:
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+      real(kind=8), intent(in):: dm(*)     !< Linear slope
+      integer, intent(in) :: itot      !< Total Longitudes
+      integer, intent(in) :: lmt       !< 0: Standard PPM constraint 1: Improved full monotonicity constraint
+                                       !< (Lin) 2: Positive definite constraint
+                                       !< 3: do nothing (return immediately)
+! INPUT/OUTPUT PARAMETERS:
+      real(kind=8), intent(inout) :: a4(4,*)   !< PPM array AA <-- a4(1,i) AL <-- a4(2,i) AR <-- a4(3,i) A6 <-- a4(4,i)
+! LOCAL VARIABLES:
+      real(kind=8) qmp, r12
+      real(kind=8) da1, da2, a6da
+      real(kind=8) fmin
+      integer i
+
+! Developer: S.-J. Lin
+
+      if ( lmt == 3 ) return
+
+      if(lmt == 0) then
+! Standard PPM constraint
+      do i=1,itot
+      if(dm(i) == 0.) then
+         a4(2,i) = a4(1,i)
+         a4(3,i) = a4(1,i)
+         a4(4,i) = 0.
+      else
+         da1  = a4(3,i) - a4(2,i)
+         da2  = da1**2
+         a6da = a4(4,i)*da1
+         if(a6da < -da2) then
+            a4(4,i) = 3.*(a4(2,i)-a4(1,i))
+            a4(3,i) = a4(2,i) - a4(4,i)
+         elseif(a6da > da2) then
+            a4(4,i) = 3.*(a4(3,i)-a4(1,i))
+            a4(2,i) = a4(3,i) - a4(4,i)
+         endif
+      endif
+      enddo
+
+      elseif (lmt == 1) then
+
+! Improved full monotonicity constraint (Lin 2004)
+! Note: no need to provide first guess of A6 <-- a4(4,i)
+      do i=1, itot
+           qmp = 2.*dm(i)
+         a4(2,i) = a4(1,i)-sign(min(abs(qmp),abs(a4(2,i)-a4(1,i))), qmp)
+         a4(3,i) = a4(1,i)+sign(min(abs(qmp),abs(a4(3,i)-a4(1,i))), qmp)
+         a4(4,i) = 3.*( 2.*a4(1,i) - (a4(2,i)+a4(3,i)) )
+      enddo
+
+      elseif (lmt == 2) then
+
+! Positive definite constraint
+      do i=1,itot
+      if( abs(a4(3,i)-a4(2,i)) < -a4(4,i) ) then
+      fmin = a4(1,i)+0.25*(a4(3,i)-a4(2,i))**2/a4(4,i)+a4(4,i)*r12
+         if( fmin < 0. ) then
+         if(a4(1,i)<a4(3,i) .and. a4(1,i)<a4(2,i)) then
+            a4(3,i) = a4(1,i)
+            a4(2,i) = a4(1,i)
+            a4(4,i) = 0.
+         elseif(a4(3,i) > a4(2,i)) then
+            a4(4,i) = 3.*(a4(2,i)-a4(1,i))
+            a4(3,i) = a4(2,i) - a4(4,i)
+         else
+            a4(4,i) = 3.*(a4(3,i)-a4(1,i))
+            a4(2,i) = a4(3,i) - a4(4,i)
+         endif
+         endif
+      endif
+      enddo
+
+      endif
+
+ end subroutine ppm_limiters
+
+ subroutine mp_auto_conversion(ql, qr, qi, qs)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+ real(kind=8), intent(inout):: ql, qr, qi, qs
+ real(kind=8), parameter:: qi0_max = 2.0e-3
+ real(kind=8), parameter:: ql0_max = 2.5e-3
+
+! Convert excess cloud water into rain:
+  if ( ql > ql0_max ) then
+       qr = ql - ql0_max
+       ql = ql0_max
+  endif 
+! Convert excess cloud ice into snow:
+  if ( qi > qi0_max ) then
+       qs = qi - qi0_max
+       qi = qi0_max
+  endif
+
+ end subroutine mp_auto_conversion
 

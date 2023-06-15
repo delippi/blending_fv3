@@ -1,6 +1,6 @@
 import numpy as np
 from netCDF4 import Dataset
-#import remap_dwinds
+import remap_dwinds
 import remap_scalar
 import chgres_winds   # might need to rename in the future
 import sys
@@ -31,7 +31,7 @@ orognc = Dataset(orog)
 
 ColdStartWinds = True
 VertRemapScalar = True
-VertRemapWinds = False
+VertRemapWinds = True
 WriteData = True
 Debug = False
 
@@ -80,7 +80,6 @@ if ColdStartWinds:
 
 # STEP 2. VERTICAL REMAPPING OF SCALARS
 if VertRemapScalar:
-    #print("Starting VertRemapScalar... ", end="")
     print("Starting VertRemapScalar... ", end="\r")
 
     # Data from cold restarts: lippi here: npz=127 km=128
@@ -145,24 +144,33 @@ if VertRemapScalar:
     Atm_delp = 0.0*delp_cold[:, :, top:bot]  # initialize to zero (delp for sfcp)
     Atm_q    = 0.0*qa  # initialize to zero (tracers... sphum=1)
     Atm_pt   = 0.0*t_cold[: ,:, top:bot]  # initialize to zero (temperature)
+    Atm_ps   = 0.0*ps
 
     #print(np.shape(Atm_delp))
     #print(np.shape(Atm_q))
     #print(np.shape(Atm_pt))
     #pdb.set_trace()
 
-    remap_scalar.main(levp, npz, ntracers, ak0, bk0,ak,bk, ps, qa, zh, omga, t_cold,
-                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis)
+    remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
+                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
 
     print("Starting VertRemapScalar... Done.")
 
 
 ## STEP 3. VERTICAL REMAPPING OF WINDS
 if VertRemapWinds:
-    print("Not ready")
+    print("Starting VertRemapWinds....", end="\r")
 
+    Atm_u = 0.0*ud[:,:,top:bot] #Atm_u has levs=npz, ud has levs km
+    Atm_v = 0.0*vd[:,:,top:bot]
     #vertically remap the dwinds
-    #remap_dwinds.main(km, ak0, bk0, psc, ud, vd, npz, ak, bk, ps, u)
+    remap_dwinds.main(levp, npz, ak0, bk0, ak, bk, ps, ud, vd,
+                      isrt, iend, jsrt, jend, Atm_u, Atm_v, Atm_ps)
+    print("Starting VertRemapWinds.... Done.")
+
+else:
+    Atm_u = ud[:,:,top:bot]
+    Atm_v = vd[:,:,top:bot]
 
 
 # STEP 4. WRITE OUT DATA
@@ -171,44 +179,44 @@ if WriteData:
     # add a new variable to the nc file by duplicating the corresponding u/v variable and
     # redefining the shape of the array, finally, assign ud/vd into the u/v variable in nc file.
 
-    # For ud
-    new_var = "u_cold"
-    ud = np.transpose(ud)
-    ud = ud[top:bot,:,:]
-    var_to_duplicate = coldnc.variables["u_s"]
-    coldnc.createVariable(new_var, var_to_duplicate.datatype, ('nlev','latp','lon'))
-    coldnc.variables[new_var][:,:,:] = ud
+    if ColdStartWinds:
+        # For ud
+        new_var = "u_cold2fv3"
+        ud = np.transpose(Atm_u)
+        #ud[:,693,442]
+        var_to_duplicate = coldnc.variables["u_s"]
+        coldnc.createVariable(new_var, var_to_duplicate.datatype, ('nlev','latp','lon'))
+        coldnc.variables[new_var][:,:,:] = ud
 
-    # For vd
-    new_var = "v_cold"
-    vd = np.transpose(vd)
-    vd = vd[top:bot,:,:]
-    var_to_duplicate = coldnc.variables["v_w"]
-    coldnc.createVariable(new_var, var_to_duplicate.datatype, ('nlev','lat','lonp'))
-    coldnc.variables[new_var][:,:,:] = vd
+        # For vd
+        new_var = "v_cold2fv3"
+        vd = np.transpose(Atm_v)
+        var_to_duplicate = coldnc.variables["v_w"]
+        coldnc.createVariable(new_var, var_to_duplicate.datatype, ('nlev','lat','lonp'))
+        coldnc.variables[new_var][:,:,:] = vd
 
-    # For Temperature
-    new_var = "t_cold2fv3"
-    t_cold = np.transpose(Atm_pt)
-    var_to_duplicate = coldnc.variables["t"]
-    coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
-    coldnc.variables[new_var][:,:,:] = t_cold
+    if VertRemapScalar:
+        # For Temperature
+        new_var = "t_cold2fv3"
+        t_cold = np.transpose(Atm_pt)
+        var_to_duplicate = coldnc.variables["t"]
+        coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
+        coldnc.variables[new_var][:,:,:] = t_cold
 
-    # For delp
-    new_var = "delp_cold2fv3"
-    delp = Atm_delp.T
-    var_to_duplicate = coldnc.variables["delp"]
-    coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
-    coldnc.variables[new_var][:,:,:] = delp
+        # For delp
+        new_var = "delp_cold2fv3"
+        delp = Atm_delp.T
+        var_to_duplicate = coldnc.variables["delp"]
+        coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
+        coldnc.variables[new_var][:,:,:] = delp
 
-    # For sphum
-    new_var = "sphum_cold2fv3"
-    sphum = Atm_q[:,:,:,0].T
-    sphum = sphum[0:bot-1,:,:] #not sure why this needs to be different
-    #sphum[-1,442,693]
-    var_to_duplicate = coldnc.variables["sphum"]
-    coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
-    coldnc.variables[new_var][:,:,:] = sphum
+        # For sphum
+        new_var = "sphum_cold2fv3"
+        sphum = Atm_q[:,:,:,0].T
+        sphum = sphum[0:bot-1,:,:] #not sure why this needs to be different
+        var_to_duplicate = coldnc.variables["sphum"]
+        coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
+        coldnc.variables[new_var][:,:,:] = sphum
 
 # for debugging purposes.
 if Debug:

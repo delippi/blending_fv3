@@ -1,5 +1,5 @@
  subroutine main(km, npz, ncnst, ak0, bk0, Atm_ak, Atm_bk, psc, qa, zh, omga, t_in, &
-                 is, ie, js, je, Atm_pt, Atm_q, Atm_delp, Atm_phis)
+                 is, ie, js, je, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
  use ISO_FORTRAN_ENV
  use omp_lib
  use, intrinsic :: ieee_arithmetic
@@ -18,6 +18,7 @@
  real(kind=8),         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
  real(kind=8),         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
  real(kind=8), dimension(:,:),     intent(IN)    ::  Atm_phis ! (768, 768)
+ real(kind=8), dimension(:,:),     intent(INOUT) ::  Atm_ps   ! (768, 768)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp ! (768, 768, 127)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_pt   ! (768, 768, 127)
  real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 128, 7)
@@ -29,7 +30,7 @@
  real(kind=8), dimension(npz+1)               ::  gz_fv
  !real(kind=8),         dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
  !real(kind=8), dimension(is:ie,js:je)         ::  Atm_phis
- real(kind=8), dimension(is:ie,js:je)         ::  Atm_ps
+! real(kind=8), dimension(is:ie,js:je)         ::  Atm_ps
  real(kind=8), dimension(is:ie,js:je,npz)   ::  Atm_delz,Atm_w
  real(kind=8), dimension(is:ie,npz+1,js:je) ::  Atm_peln
 
@@ -118,8 +119,6 @@
            endif
         enddo
 123     Atm_ps(i,j) = exp(pst)
-        if(i<= 3 .and. j<=3) then
-        endif
 
  ! ------------------
  ! Find 500-mb height
@@ -154,7 +153,7 @@
      enddo
 
 ! map tracers
-     tracers: do iq=1,ncnst
+     tracers: do iq=1,1 !ncnst
         if (floor(qa(is,j,1,iq)) > -999) then !skip missing scalars
            do k=1,km
               do i=is,ie
