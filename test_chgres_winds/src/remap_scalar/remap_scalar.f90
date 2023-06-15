@@ -4,37 +4,42 @@
  use omp_lib
  use, intrinsic :: ieee_arithmetic
  implicit none
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer,                          intent(IN)    ::  km       ! 128
  integer,                          intent(IN)    ::  npz      ! 127
  integer,                          intent(IN)    ::  ncnst    !   7
- real,         dimension(:),       intent(IN)    ::  ak0      ! (129,)
- real,         dimension(:),       intent(IN)    ::  bk0      ! (129,)
- real,         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
- real,         dimension(:,:,:),   intent(IN)    ::  zh       ! (768, 768, 129)
- real,         dimension(:,:,:),   intent(IN)    ::  omga     ! (768, 768, 128)
- real,         dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 128)
- real,         dimension(:,:,:,:), intent(IN)    ::  qa       ! (768, 768, 128, 7)
- real,         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
- real,         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
- real,         dimension(:,:),     intent(IN)    ::  Atm_phis ! (768, 768)
+ real(kind=8),         dimension(:),       intent(IN)    ::  ak0      ! (129,)
+ real(kind=8),         dimension(:),       intent(IN)    ::  bk0      ! (129,)
+ real(kind=8),         dimension(:,:),     intent(IN)    ::  psc      ! (768, 768)
+ real(kind=8),         dimension(:,:,:),   intent(IN)    ::  zh       ! (768, 768, 129)
+ real(kind=8),         dimension(:,:,:),   intent(IN)    ::  omga     ! (768, 768, 128)
+ real(kind=8),         dimension(:,:,:),   intent(IN)    ::  t_in     ! (768, 768, 128)
+ real(kind=8),         dimension(:,:,:,:), intent(IN)    ::  qa       ! (768, 768, 128, 7)
+ real(kind=8),         dimension(:),       intent(IN)    ::  Atm_ak   ! (128,)
+ real(kind=8),         dimension(:),       intent(IN)    ::  Atm_bk   ! (128,)
+ real(kind=8), dimension(:,:),     intent(IN)    ::  Atm_phis ! (768, 768)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp ! (768, 768, 127)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_pt   ! (768, 768, 127)
  real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 128, 7)
  integer,                          intent(IN)    ::  is, ie, js, je
 
- real                                         ::  Atm_ptop
+ real(kind=8)                                 ::  Atm_ptop
  real(kind=8)                                 ::  pst
  real(kind=8), dimension(2*km+1)              ::  pn,gz
  real(kind=8), dimension(npz+1)               ::  gz_fv
- !real,         dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
+ !real(kind=8),         dimension(1:npz+1)             ::  Atm_ak,Atm_bk !128
  !real(kind=8), dimension(is:ie,js:je)         ::  Atm_phis
  real(kind=8), dimension(is:ie,js:je)         ::  Atm_ps
- real(kind=8), dimension(is:ie,js:je,1:npz)   ::  Atm_delz,Atm_w
- real(kind=8), dimension(is:ie,1:npz+1,js:je) ::  Atm_peln
+ real(kind=8), dimension(is:ie,js:je,npz)   ::  Atm_delz,Atm_w
+ real(kind=8), dimension(is:ie,npz+1,js:je) ::  Atm_peln
 
- real, dimension(is:ie,1:npz)  ::  dp2,qn1
- real, dimension(is:ie,1:km+1) ::  pe0,pe1,pn0,pn1
- real, dimension(is:ie,js:je)  ::  z500,qp
+ real(kind=8), dimension(is:ie,npz)   ::  dp2,qn1
+ real(kind=8), dimension(is:ie,km+1)  ::  pe0
+ real(kind=8), dimension(is:ie,npz+1) ::  pe1
+ real(kind=8), dimension(is:ie,km+1) ::  pn0
+ real(kind=8), dimension(is:ie,npz+1) ::  pn1
+ real(kind=8), dimension(is:ie,km)  ::  qp
+ real(kind=8), dimension(is:ie,js:je)  ::  z500
 
 
  integer :: sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel
@@ -48,10 +53,11 @@
  logical :: ncep_ic = .false.
 
 !Constants
- real, parameter:: grav= 9.80616   !< acceleration due to gravity (m/s2)
- real, parameter:: rdgas=287.05    !< gfs: gas constant for dry air
- real, parameter :: rvgas = 461.50 !< gfs: gas constant for water vapor
- real, parameter:: zvir =  rvgas/rdgas - 1.     !< = 0.607789855
+ !real(kind=8), parameter:: grav= 9.80616   !< acceleration due to gravity (m/s2)
+ real(kind=8), parameter:: grav  =9.80665_r8_kind   !< acceleration due to gravity (m/s2)
+ real(kind=8), parameter:: rdgas = 287.05_r8_kind    !< gfs: gas constant for dry air
+ real(kind=8), parameter :: rvgas = 461.5_r8_kind
+ real(kind=8), parameter:: zvir =  rvgas/rdgas - 1.0_r8_kind
 
 
  k2 = max(10, km/2)
@@ -61,9 +67,9 @@
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
  !Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
-   write(*,*) Atm_phis(1,1)
-   write(*,*) Atm_phis(1,2)
-   write(*,*) Atm_phis(1,3)
+!   write(*,*) Atm_phis(1,1)
+!   write(*,*) Atm_phis(1,2)
+!   write(*,*) Atm_phis(1,3)
 
 
  ! This is the order in my python code
@@ -75,6 +81,44 @@
  snowwat = 6
  graupel = 7
 
+
+!WRITE(*,*) "km:", KIND(km)
+!WRITE(*,*) "npz:", KIND(npz)
+!WRITE(*,*) "ncnst:", KIND(ncnst)
+!WRITE(*,*) "ak0:", KIND(ak0)
+!WRITE(*,*) "bk0:", KIND(bk0)
+!WRITE(*,*) "psc:", KIND(psc)
+!WRITE(*,*) "omga:", KIND(omga)
+!WRITE(*,*) "t_in:", KIND(t_in)
+!WRITE(*,*) "qa:", KIND(qa)
+!WRITE(*,*) "zh:", KIND(zh)
+!WRITE(*,*) "pe0:", KIND(pe0)
+!WRITE(*,*) "qn1:", KIND(qn1)
+!WRITE(*,*) "dp2:", KIND(dp2)
+!WRITE(*,*) "pe1:", KIND(pe1)
+!WRITE(*,*) "qp:", KIND(qp)
+!WRITE(*,*) "z500:", KIND(z500)
+!WRITE(*,*) "pn1:", KIND(pn1)
+!WRITE(*,*) "gz_fv:", KIND(gz_fv)
+!WRITE(*,*) "gz:", KIND(gz)
+!WRITE(*,*) "pn:", KIND(pn)
+!WRITE(*,*) "pn0:", KIND(pn0)
+!WRITE(*,*) "pst:", KIND(pst)
+!
+!WRITE(*,*) "Atm_ak:", KIND(Atm_ak)
+!WRITE(*,*) "Atm_bk:", KIND(Atm_bk)
+!WRITE(*,*) "Atm_phis:", KIND(Atm_phis)
+!WRITE(*,*) "Atm_delp:", KIND(Atm_delp)
+!WRITE(*,*) "Atm_pt:", KIND(Atm_pt)
+!WRITE(*,*) "Atm_q:", KIND(Atm_q)
+!WRITE(*,*) "is, ie, js, je:", KIND(is)
+!WRITE(*,*) "Atm_ptop:", KIND(Atm_ptop)
+!WRITE(*,*) "pst:", KIND(pst)
+!WRITE(*,*) "pn:", KIND(pn)
+!WRITE(*,*) "gz:", KIND(gz)
+!WRITE(*,*) "gz_fv:", KIND(gz_fv)
+
+WRITE(*,*) "Atm_ak:", Atm_ak
 
 !$OMP parallel do default(none) &
 !$OMP             shared(ncnst,npz,is,ie,js,je,km,k2,ak0,bk0,psc,zh,omga,qa,z500,t_in, &
@@ -110,12 +154,26 @@
         do k=km+k2-1, 2, -1
            if( Atm_phis(i,j).le.gz(k) .and. Atm_phis(i,j).ge.gz(k+1) ) then
               pst = pn(k) + (pn(k+1)-pn(k))*(gz(k)-Atm_phis(i,j))/(gz(k)-gz(k+1))
+              if(i==442+1 .and. j==693+1) then
+                  write(*,*) "k",k
+                  write(*,*) "pst",pst
+                  write(*,*) "pn",pn(k),pn(k+1)
+                  write(*,*) "gz",gz(k),gz(k+1)
+                  write(*,*) "zh",zh(i,j,k)
+                  write(*,*) "Atm_phis",Atm_phis(i,j)
+                  write(*,*) "gravity",grav
+                  write(*,*) "rdgas",rdgas
+                  write(*,*) "zvir",zvir
+                  write(*,*) "rvgas",rvgas
+                  write(*,*) ""
+              endif
+
               go to 123
            endif
         enddo
 123     Atm_ps(i,j) = exp(pst)
         if(i<= 3 .and. j<=3) then
-        write(*,*) "ps(",i,",",j,")",Atm_ps(i,j)
+        write(*,*) "ps(",i,",",j,")",Atm_ps(i,j)  !100641.796875000
         endif
 
  ! ------------------
@@ -151,6 +209,7 @@
      enddo
 
 ! map tracers
+!     write(*,*) "tracers starting..."
      tracers: do iq=1,ncnst
        Atm_ps(i,j) = exp(pst)
         if (floor(qa(is,j,1,iq)) > -999) then !skip missing scalars
@@ -176,6 +235,8 @@
 !---------------------------------------------------
 ! Retrive temperature using  geopotential height from external data
 !---------------------------------------------------
+   !write(*,*) "iloop2 starting..."
+!write(*,*) "lippi debug 1"
    iloop2: do i=is,ie
 ! Make sure FV3 top is lower than GFS; can not do extrapolation above the top at this point
       if ( pn1(i,1) .lt. pn0(i,1) ) then
@@ -195,6 +256,7 @@
          pn(k) = 2.*pn(km+1) - pn(l)
       enddo
 !-------------------------------------------------
+!write(*,*) "lippi debug 2"
 
       gz_fv(npz+1) = Atm_phis(i,j)
 
@@ -227,12 +289,13 @@
       do k=1,npz+1
          Atm_peln(i,k,j) = pn1(i,k)
       enddo
+!write(*,*) "lippi debug 3"
 
 !----------------------------------------------------
 ! Compute true temperature using hydrostatic balance
 !----------------------------------------------------
       !if (.not. data_source_fv3gfs .or. .not. present(t_in)) then
-      if (.not. data_source_fv3gfs) then
+      if (data_source_fv3gfs) then
         do k=1,npz
 !#ifdef MULTI_GASES
 !           Atm_pt(i,j,k) = (gz_fv(k)-gz_fv(k+1))/( rdgas*(pn1(i,k+1)-pn1(i,k))*virq(Atm_q(i,j,k,:)) )
@@ -247,10 +310,20 @@
         do k=1,km
             qp(i,k) = t_in(i,j,k)
         enddo
+!write(*,*) "lippi debug 4"
 
         call mappm(km, log(pe0), qp, npz, log(pe1), qn1, is,ie, 2, 4, Atm_ptop) ! pn0 and pn1 are higher-precision
                                                                                 ! and cannot be passed to mappm
         do k=1,npz
+            if(i==443 .and. j==694 .and. k==npz) then
+            write(*,*) "log(pe0)",log(pe0(i,k))
+            write(*,*) "qp(",i,k,")=",qp(i,k)
+            write(*,*) "log(pe1)",log(pe1(i,k))
+            write(*,*) "qn1",qn1(i,k)
+            write(*,*) "Atm_ptop",Atm_ptop
+            write(*,*) ""
+            endif
+
             Atm_pt(i,j,k) = qn1(i,k)
         enddo
       endif
@@ -258,6 +331,13 @@
          do k=1,npz
             Atm_delz(i,j,k) = (gz_fv(k+1) - gz_fv(k)) / grav
          enddo
+      endif
+!write(*,*) "lippi debug 5"
+      if(i<=3 .and. j<=3) then
+      write(*,*) "Atm_pt(",i,",",j,",",npz,")",Atm_pt(i,j,npz)  !
+      endif
+      if(i==442+1 .and. j==693+1) then
+      write(*,*) "Atm_pt(",i,",",j,",",npz,")",Atm_pt(i,j,npz)  !
       endif
 
    enddo  iloop2  ! i-loop
@@ -348,7 +428,7 @@
 
   write(*,*) "Atm_pt(1,1,1)",Atm_pt(1,1,1)
   !write(*,*) "Atm_pt(0,693,442)",Atm_pt(693+1,442+1,0+1)
-  write(*,*) "Atm_pt(0,442,693)",Atm_pt(442+1,693+1,0+1)
+  write(*,*) "Atm_pt(0,442,693)",Atm_pt(442+1,693+1,npz)
 
  end subroutine main
 
@@ -356,6 +436,7 @@
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
 !! one set of vertical levels to another. 
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
+ use ISO_FORTRAN_ENV
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
@@ -367,22 +448,23 @@
 ! pe2: pressure at layer edges (from model top to bottom surface)
 !      in the new vertical coordinate
 
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2, km, kn, kord, iv
- real, intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
+ real(kind=8), intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
                                                       !!      surface in the ORIGINAL vertical coordinate 
                                                       !< pe2: pressure at layer edges from model top to bottom 
                                                       !!      surface in the NEW vertical coordinate
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
- real, intent(in )::  q1(i1:i2,km)
- real, intent(out)::  q2(i1:i2,kn)
- real, intent(IN) :: ptop
+ real(kind=8), intent(in )::  q1(i1:i2,km)
+ real(kind=8), intent(out)::  q2(i1:i2,kn)
+ real(kind=8), intent(IN) :: ptop
 ! local
-      real  qs(i1:i2)
-      real dp1(i1:i2,km)
-      real a4(4,i1:i2,km)
+      real(kind=8) qs(i1:i2)
+      real(kind=8)dp1(i1:i2,km)
+      real(kind=8)a4(4,i1:i2,km)
       integer i, k, l
       integer k0, k1
-      real pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
+      real(kind=8)pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
 
       do k=1,km
          do i=i1,i2
@@ -487,11 +569,13 @@
  end subroutine mappm
 
  subroutine fillq(im, km, nq, q, dp)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
    integer,  intent(in):: im            !< No. of longitudes
    integer,  intent(in):: km            !< No. of levels
    integer,  intent(in):: nq            !< Total number of tracers
-   real , intent(in)::  dp(im,km)       !< pressure thickness
-   real , intent(inout) :: q(im,km,nq)  !< tracer mixing ratio
+   real(kind=8), intent(in)::  dp(im,km)       !< pressure thickness
+   real(kind=8), intent(inout) :: q(im,km,nq)  !< tracer mixing ratio
 ! !LOCAL VARIABLES:
    integer i, k, ic, k1
 
@@ -524,16 +608,18 @@
 !>@brief The subroutine 'fillz' is for mass-conservative filling of nonphysical negative values in the tracers. 
 !>@details This routine takes mass from adjacent cells in the same column to fill negatives, if possible.
  subroutine fillz(im, km, nq, q, dp)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
    integer,  intent(in):: im                !< No. of longitudes
    integer,  intent(in):: km                !< No. of levels
    integer,  intent(in):: nq                !< Total number of tracers
-   real , intent(in)::  dp(im,km)           !< pressure thickness
-   real , intent(inout) :: q(im,km,nq)      !< tracer mixing ratio
+   real(kind=8), intent(in)::  dp(im,km)           !< pressure thickness
+   real(kind=8), intent(inout) :: q(im,km,nq)      !< tracer mixing ratio
 ! LOCAL VARIABLES:
    logical:: zfix(im)
-   real ::  dm(km)
+   real(kind=8)::  dm(km)
    integer i, k, ic !, k1
-   real  qup, qly, dup, dq, sum0, sum1, fac
+   real(kind=8) qup, qly, dup, dq, sum0, sum1, fac
 
    do ic=1,nq
 !#ifdef DEV_GFS_PHYS
@@ -632,24 +718,26 @@
 
 
  subroutine cs_profile(qs, a4, delp, km, i1, i2, iv, kord)
+ use ISO_FORTRAN_ENV
 ! Optimized vertical profile reconstruction:
 ! Latest: Apr 2008 S.-J. Lin, NOAA/GFDL
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2
  integer, intent(in):: km      !< vertical dimension
  integer, intent(in):: iv      !< iv =-1: winds
                                !< iv = 0: positive definite scalars
                                !< iv = 1: others
  integer, intent(in):: kord
- real, intent(in)   ::   qs(i1:i2)
- real, intent(in)   :: delp(i1:i2,km)     !< layer pressure thickness
- real, intent(inout):: a4(4,i1:i2,km)     !< Interpolated values
+ real(kind=8), intent(in)   ::   qs(i1:i2)
+ real(kind=8), intent(in)   :: delp(i1:i2,km)     !< layer pressure thickness
+ real(kind=8), intent(inout):: a4(4,i1:i2,km)     !< Interpolated values
 !-----------------------------------------------------------------------
  logical, dimension(i1:i2,km):: extm, ext5, ext6
- real  gam(i1:i2,km)
- real    q(i1:i2,km+1)
- real   d4(i1:i2)
- real   bet, a_bot, grat
- real   pmp_1, lac_1, pmp_2, lac_2, x0, x1
+ real(kind=8) gam(i1:i2,km)
+ real(kind=8)   q(i1:i2,km+1)
+ real(kind=8)  d4(i1:i2)
+ real(kind=8)  bet, a_bot, grat
+ real(kind=8)  pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
 
  if ( iv .eq. -2 ) then
@@ -1034,8 +1122,10 @@
  end subroutine cs_profile
 
  subroutine ppm_profile(a4, delp, km, i1, i2, iv, kord)
+ use ISO_FORTRAN_ENV
 
 ! !INPUT PARAMETERS:
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: iv      !< iv =-1: winds
                                !! iv = 0: positive definite scalars
                                !! iv = 1: others
@@ -1045,10 +1135,10 @@
  integer, intent(in):: km      !< vertical dimension
  integer, intent(in):: kord    !< Order (or more accurately method no.):
                                !!
- real , intent(in):: delp(i1:i2,km)     !< layer pressure thickness
+ real(kind=8), intent(in):: delp(i1:i2,km)     !< layer pressure thickness
 
 ! !INPUT/OUTPUT PARAMETERS:
- real , intent(inout):: a4(4,i1:i2,km)  !< Interpolated values
+ real(kind=8), intent(inout):: a4(4,i1:i2,km)  !< Interpolated values
 
 ! DESCRIPTION:
 !
@@ -1058,17 +1148,17 @@
 ! S.-J. Lin   revised at GFDL 2007
 !-----------------------------------------------------------------------
 ! local arrays:
-      real    dc(i1:i2,km)
-      real    h2(i1:i2,km)
-      real  delq(i1:i2,km)
-      real   df2(i1:i2,km)
-      real    d4(i1:i2,km)
+      real(kind=8)   dc(i1:i2,km)
+      real(kind=8)   h2(i1:i2,km)
+      real(kind=8) delq(i1:i2,km)
+      real(kind=8)  df2(i1:i2,km)
+      real(kind=8)   d4(i1:i2,km)
 
 ! local scalars:
       integer i, k, km1, lmt, it
-      real  fac
-      real  a1, a2, c1, c2, c3, d1, d2
-      real  qm, dq, lac, qmp, pmp
+      real(kind=8) fac
+      real(kind=8) a1, a2, c1, c2, c3, d1, d2
+      real(kind=8) qm, dq, lac, qmp, pmp
 
       km1 = km - 1
        it = i2 - i1 + 1
@@ -1293,12 +1383,14 @@
  end subroutine ppm_profile
 
  subroutine cs_limiters(im, extm, a4, iv)
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in) :: im
  integer, intent(in) :: iv
  logical, intent(in) :: extm(im)
- real , intent(inout) :: a4(4,im)   !< PPM array
+ real(kind=8), intent(inout) :: a4(4,im)   !< PPM array
 ! LOCAL VARIABLES:
- real  da1, da2, a6da, r12
+ real(kind=8) da1, da2, a6da, r12
  integer i
 
  if ( iv==0 ) then
@@ -1370,19 +1462,21 @@
  end subroutine cs_limiters
 
  subroutine ppm_limiters(dm, a4, itot, lmt)
+ use ISO_FORTRAN_ENV
 
 ! INPUT PARAMETERS:
-      real , intent(in):: dm(*)     !< Linear slope
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+      real(kind=8), intent(in):: dm(*)     !< Linear slope
       integer, intent(in) :: itot      !< Total Longitudes
       integer, intent(in) :: lmt       !< 0: Standard PPM constraint 1: Improved full monotonicity constraint
                                        !< (Lin) 2: Positive definite constraint
                                        !< 3: do nothing (return immediately)
 ! INPUT/OUTPUT PARAMETERS:
-      real , intent(inout) :: a4(4,*)   !< PPM array AA <-- a4(1,i) AL <-- a4(2,i) AR <-- a4(3,i) A6 <-- a4(4,i)
+      real(kind=8), intent(inout) :: a4(4,*)   !< PPM array AA <-- a4(1,i) AL <-- a4(2,i) AR <-- a4(3,i) A6 <-- a4(4,i)
 ! LOCAL VARIABLES:
-      real  qmp, r12
-      real  da1, da2, a6da
-      real  fmin
+      real(kind=8) qmp, r12
+      real(kind=8) da1, da2, a6da
+      real(kind=8) fmin
       integer i
 
 ! Developer: S.-J. Lin
@@ -1448,9 +1542,11 @@
  end subroutine ppm_limiters
 
  subroutine mp_auto_conversion(ql, qr, qi, qs)
- real*8, intent(inout):: ql, qr, qi, qs
- real*8, parameter:: qi0_max = 2.0e-3
- real*8, parameter:: ql0_max = 2.5e-3
+ use ISO_FORTRAN_ENV
+ integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
+ real(kind=8), intent(inout):: ql, qr, qi, qs
+ real(kind=8), parameter:: qi0_max = 2.0e-3
+ real(kind=8), parameter:: ql0_max = 2.5e-3
 
 ! Convert excess cloud water into rain:
   if ( ql > ql0_max ) then
