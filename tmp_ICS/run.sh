@@ -36,7 +36,7 @@ cp ./gdas/gfs.bndy.nc      ./gfs.bndy.nc
 
 # RRFS FILES
 cp ./rrfs/RESTART/20220720.180000.fv_core.res.tile1.nc   ./fv_core.res.tile1.nc
-#cp ./rrfs/RESTART/20220720.180000.fv_tracer.res.tile1.nc ./fv_tracer.res.tile1.nc
+cp ./rrfs/RESTART/20220720.180000.fv_tracer.res.tile1.nc ./fv_tracer.res.tile1.nc
 cp ./rrfs/RESTART/20220720.180000.fv_core.res.nc         ./fv_core.res.nc
 
 # FIX FILES
@@ -56,3 +56,9 @@ bndy=./gfs.bndy.nc
 python da_chgres_winds.py $warm $cold $grid $akbk $akbkcold $orog $bndy
 
 
+# NOW RUN BLENDING STEP
+glb=./out.atm.tile7.nc        #This is the glb after wind rotation and vert remapping.
+reg=./fv_core.res.tile1.nc    #The warm rrfs restart
+trcr=./fv_tracer.res.tile1.nc #RRFS tracer file for sphum
+
+python da_blending_fv3.py $glb $reg $trcr
