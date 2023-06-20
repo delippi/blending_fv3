@@ -25,6 +25,20 @@ sphum_sfc=True
 #delp_sfc=False
 #sphum_sfc=False
 
+i=693; j=442 #random
+#i=295; j=126 #temp
+#i=418; j=534 #temp
+#i=689; j=433 #delp
+#i=295; j=126 #sphum
+#i=688; j=438 #ugrd
+
+
+def max_index_2d(arr):
+    max_index = np.argmax(np.abs(arr))
+    max_index_2d = np.unravel_index(max_index, arr.shape)
+    print(f"Max value index: i={max_index_2d[0]}; j={max_index_2d[1]}")
+    print("")
+
 expnc.createDimension('nlev_1', size=1)
 if sphum_sfc:
     print("Working on sphum")
@@ -38,10 +52,11 @@ if sphum_sfc:
     diff_chgreswinds_minus_cold2fv3 = var0 - var2
     diff_coldstartwinds_minus_cold2fv3 = var1 - var2
 
-    print(var0[693,442])
-    print(var1[693,442])
-    print(var2[693,442])
-    print(np.max(diff_chgreswinds_minus_cold2fv3))
+    print(var0[i,j])
+    print(var1[i,j])
+    print(var2[i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3)))
+    max_index_2d(diff_chgreswinds_minus_cold2fv3)
 
     # Create new variables to store the diffs in.
     var_to_duplicate = expnc.variables["sphum_cold2fv3"]
@@ -67,10 +82,11 @@ if delp_sfc:
     diff_chgreswinds_minus_cold2fv3 = var0 - var2
     diff_coldstartwinds_minus_cold2fv3 = var1 - var2
 
-    print(var0[693,442])
-    print(var1[693,442])
-    print(var2[693,442])
-    print(np.max(diff_chgreswinds_minus_cold2fv3))
+    print(var0[i,j])
+    print(var1[i,j])
+    print(var2[i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3)))
+    max_index_2d(diff_chgreswinds_minus_cold2fv3)
 
     # Create new variables to store the diffs in.
     var_to_duplicate = expnc.variables["delp_cold2fv3"]
@@ -97,10 +113,11 @@ if temp_sfc:
     diff_chgreswinds_minus_cold2fv3 = var0 - var2
     diff_coldstartwinds_minus_cold2fv3 = var1 - var2
 
-    print(var0[693,442])
-    print(var1[693,442])
-    print(var2[693,442])
-    print(np.max(diff_chgreswinds_minus_cold2fv3))
+    print(var0[i,j])
+    print(var1[i,j])
+    print(var2[i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3)))
+    max_index_2d(diff_chgreswinds_minus_cold2fv3)
 
     # Create new variables to store the diffs in.
     var_to_duplicate = expnc.variables["t_cold2fv3"]
@@ -125,11 +142,13 @@ if ugrd_sfc:
     diff_chgreswinds_minus_cold2fv3 = var0 - var2
     diff_coldstartwinds_minus_cold2fv3 = var1 - var2
 
-    print(var0[693,442])
-    print(var1[693,442])
-    print(var2[693,442])
-    print(np.max(diff_chgreswinds_minus_cold2fv3[1:760,1:760]))
-    print(np.max(diff_coldstartwinds_minus_cold2fv3[1:760,1:760]))
+    print(var0[i,j])
+    print(var1[i,j])
+    print(var2[i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3[1:760,1:760])))
+    print(np.max(np.abs(diff_coldstartwinds_minus_cold2fv3[1:760,1:760])))
+    max_index_2d(diff_chgreswinds_minus_cold2fv3[1:760,1:760])
+    max_index_2d(diff_coldstartwinds_minus_cold2fv3[1:760,1:760])
 
     # Create new variables to store the diffs in.
     var_to_duplicate = expnc.variables["u_cold2fv3"]

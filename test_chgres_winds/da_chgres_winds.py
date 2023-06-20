@@ -15,7 +15,6 @@ tic = tictoc.tic()
 #akbk = str(sys.argv[4])  # ./fv_core.res.nc
 warm = str("./fv_core.res.tile1.nc")
 cold = str("./out.atm.tile1.nc")
-#trcr = str("./fv_tracer.res.tile1.nc"
 grid = str("./C768_grid.tile1.nc")
 akbk = str("./fv_core.res.nc")
 akbkcold = str("./gfs_ctrl.nc")
@@ -23,7 +22,6 @@ orog = str("./C768_oro_data.tile1.nc")
 
 warmnc = Dataset(warm)
 coldnc = Dataset(cold, mode="a")
-#trcrnc = Dataset(trcr, mode="a")  # sphum goes in here
 akbknc = Dataset(akbk)
 gridnc = Dataset(grid)
 akbkcoldnc = Dataset(akbkcold)
@@ -33,7 +31,6 @@ ColdStartWinds  = True
 VertRemapScalar = True
 VertRemapWinds  = True
 WriteData       = True
-Debug = False
 
 top=1; bot=128
 
@@ -76,7 +73,32 @@ if ColdStartWinds:
     chgres_winds.main(gridx,gridy,u_s,v_s,u_w,v_w,ud,vd)
 
     print("Starting ColdStartWinds.... Done.")
+"""
+What I'm getting:
+x psc(         690 ,         434 )   93558.3046875000                1
+x pe0(         690 ,         129 )   9.42375000953311              129
+x Atm_phis(         690 ,         434 )   6546.52066600342
+x gz(         129 )   6567.47112763062
+x pn(k)   11.4463401004773
+x pst   11.4465860734725
+x zh(i,j,k)   669.695678710938
+x Atm_ps(         690 ,         434 )   93581.3203344323
+x Atm_delp(         690 ,         434 ,         127 )   231.314307602646
 
+
+
+
+Trying to match exactly this:
+x psc(         690 ,         434 )   93558.3046875000                1
+x pe0(         690 ,         129 )   9.42375000953311              129
+x Atm%phis(         690 ,         434 )   6546.52066600342
+x gz(         129 )   6567.47112763062
+x pn(k)   11.4463401004773
+x pst   11.4465860734725
+x zh(i,j,k)   669.695678710938
+x Atm%ps(         690 ,         434 )   93581.3203344323
+x Atm%delp(         690 ,         434 ,         127 )   231.314307602646
+"""
 
 # STEP 2. VERTICAL REMAPPING OF SCALARS
 if VertRemapScalar:
@@ -87,16 +109,18 @@ if VertRemapScalar:
     npz  = 127
     ak0  = np.float64(akbkcoldnc["vcoord"][0, :])   # ( lev,         ) == (128,         )
     bk0  = np.float64(akbkcoldnc["vcoord"][1, :])   # ( lev,         ) == (128,         )
-    ak   = np.float64(akbknc["ak"][0, :])           # ( lev,         ) == (128,         )
-    bk   = np.float64(akbknc["bk"][0, :])           # ( lev,         ) == (128,         )
+    ak   = ak0[1:-1]
+    bk   = bk0[1:-1]
+    #ak   = np.float64(akbknc["ak"][0, :])           # ( lev,         ) == (128,         )
+    #bk   = np.float64(akbknc["bk"][0, :])           # ( lev,         ) == (128,         )
     ps   = np.float64(coldnc["ps"][:, :])           # (      lat, lon) == (     768, 768)
     zh   = np.float64(coldnc["zh"][:, :, :])        # (levp, lat, lon) == (129, 768, 768)
     omga = np.float64(coldnc["w"][:, :, :])         # ( lev, lat, lon) == (128, 768, 768)
     delp_cold = np.float64(coldnc["delp"][:, :, :]) # (127, 768, 768)
     t_cold    = np.float64(coldnc["t"][:, :, :])    # (128, 768, 768)
-    Atm_phis  = np.float64(warmnc["phis"][0, :, :])
-    #t_cold = np.asfortranarray(coldnc["t"].T)
-    #Atm_phis = np.asfortranarray(warmnc["phis"][0].T)
+    #Atm_phis  = np.float64(warmnc["phis"][0, :, :])         # very close
+    #Atm_phis  = np.float64(orognc["orog_raw"][:,:])*9.80665 # not quite right either.
+    Atm_phis  = np.float64(orognc["orog_filt"][:,:])*9.80665 # I think this is the correct phis
 
     sphum   = np.float64(coldnc["sphum"][:, :, :]) # ( lev, lat, lon) == (128, 768, 768)
     liq_wat = np.float64(coldnc["liq_wat"][:, :, :])
@@ -127,17 +151,18 @@ if VertRemapScalar:
     t_cold    = np.asfortranarray(t_cold.transpose())
 
     # need to put 1.0e-9 as first element in a/bk0
-    ak0[0] = 1.000000000000000E-009
-    bk0[0] = 1.000000000000000E-009
+    #ak0[0] = 1.000000000000000E-009
+    #bk0[0] = 1.000000000000000E-009
 
     # Initialize some computed fields to zero
-    Atm_delp = 0.0*delp_cold[:, :, top:bot]  # initialize to zero (delp for sfcp)
-    Atm_q    = 0.0*qa                        # initialize to zero (tracers... sphum=1)
-    Atm_pt   = 0.0*t_cold[: ,:, top:bot]     # initialize to zero (temperature)
-    Atm_ps   = 0.0*ps                        # initialize to zero (need for remap_dwinds)
+    Atm_delp = 1.0*delp_cold[:, :, top:bot]  # initialize to zero (delp for sfcp)
+    Atm_q    = 1.0*qa[:, :, top:bot, :]      # initialize to zero (tracers... sphum=1)
+    Atm_pt   = 1.0*t_cold[: ,:, top:bot]     # initialize to zero (temperature)
+    Atm_ps   = 1.0*ps[:,:]                   # initialize to zero (need for remap_dwinds)
 
-    remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
-                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
+    if True:
+        remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
+                          isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
 
     print("Starting VertRemapScalar... Done.")
 
@@ -146,8 +171,8 @@ if VertRemapScalar:
 if VertRemapWinds:
     print("Starting VertRemapWinds....", end="\r")
 
-    Atm_u = 0.0*ud[:,:,top:bot] #Atm_u has levs=npz, ud has levs km
-    Atm_v = 0.0*vd[:,:,top:bot]
+    Atm_u = 1.0*ud[:,:,top:bot] #Atm_u has levs=npz, ud has levs km
+    Atm_v = 1.0*vd[:,:,top:bot]
 
     #vertically remap the dwinds
     remap_dwinds.main(levp, npz, ak0, bk0, ak, bk, ps, ud, vd,
@@ -200,7 +225,7 @@ if WriteData:
         # For sphum
         new_var = "sphum_cold2fv3"
         sphum = Atm_q[:,:,:,0].T
-        sphum = sphum[0:bot-1,:,:] #not sure why this needs to be different
+        #sphum = sphum[0:bot-1,:,:] #not sure why this needs to be different
         var_to_duplicate = coldnc.variables["sphum"]
         coldnc.createVariable(new_var,var_to_duplicate.datatype, ('nlev','lat','lon'))
         coldnc.variables[new_var][:,:,:] = sphum

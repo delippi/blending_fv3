@@ -24,6 +24,7 @@
  real(kind=8), dimension(is:ie+1,1:npz+1)        ::  pe1
 
  integer :: i,j,k,itoa
+ logical :: no_boundary
 
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
@@ -43,13 +44,21 @@
      !pressure at layer edges (from model top to bottom surface) in the original vertical coordinate
      do k=1,km+1
         do i=is,ie
+           if(j==1) then
+           pe0(i,k) = ak0(k) + bk0(k)*0.5*(psd(i,j)+psd(i,j))
+           else
            pe0(i,k) = ak0(k) + bk0(k)*0.5*(psd(i,j-1)+psd(i,j))
+           endif
         enddo
      enddo
      !pressure at layer edges (from model top to bottom surface) in the new vertical coordinate
      do k=1,npz+1
         do i=is,ie
+           if(j==1) then
+           pe1(i,k) = Atm_ak(k) + Atm_bk(k)*0.5*(Atm_ps(i,j)+Atm_ps(i,j))
+           else
            pe1(i,k) = Atm_ak(k) + Atm_bk(k)*0.5*(Atm_ps(i,j-1)+Atm_ps(i,j))
+           endif
         enddo
      enddo
      call mappm(km, pe0(is:ie,1:km+1), ud(is:ie,j,1:km), npz, pe1(is:ie,1:npz+1),   &
@@ -67,12 +76,20 @@
 
      do k=1,km+1
         do i=is,ie+1
+           if(i==1) then
+           pe0(i,k) = ak0(k) + bk0(k)*0.5*(psd(i,j)+psd(i,j))
+           else
            pe0(i,k) = ak0(k) + bk0(k)*0.5*(psd(i-1,j)+psd(i,j))
+           endif
         enddo
      enddo
      do k=1,npz+1
         do i=is,ie+1
+           if(i==1) then
+           pe1(i,k) = Atm_ak(k) + Atm_bk(k)*0.5*(Atm_ps(i,j)+Atm_ps(i,j))
+           else
            pe1(i,k) = Atm_ak(k) + Atm_bk(k)*0.5*(Atm_ps(i-1,j)+Atm_ps(i,j))
+           endif
         enddo
      enddo
      call mappm(km, pe0(is:ie+1,1:km+1), vd(is:ie+1,j,1:km), npz, pe1(is:ie+1,1:npz+1),  &
@@ -94,7 +111,7 @@
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
 !! one set of vertical levels to another.
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
- use ISO_FORTRAN_ENV
+
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
@@ -106,7 +123,6 @@
 ! pe2: pressure at layer edges (from model top to bottom surface)
 !      in the new vertical coordinate
 
- integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2, km, kn, kord, iv
  real(kind=8), intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
                                                       !!      surface in the ORIGINAL vertical coordinate
@@ -123,6 +139,7 @@
       integer i, k, l
       integer k0, k1
       real(kind=8) pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
+      logical :: NGGPS_SUBMITTED=.true.
 
       do k=1,km
          do i=i1,i2
@@ -141,12 +158,14 @@
 ! Lowest layer: constant distribution
 !------------------------------------
 !#ifdef NGGPS_SUBMITTED
-!      do i=i1,i2
-!         a4(2,i,km) = q1(i,km)
-!         a4(3,i,km) = q1(i,km)
-!         a4(4,i,km) = 0.
-!      enddo
+if(NGGPS_SUBMITTED) then
+      do i=i1,i2
+         a4(2,i,km) = q1(i,km)
+         a4(3,i,km) = q1(i,km)
+         a4(4,i,km) = 0.
+      enddo
 !#endif
+endif
 
       do 5555 i=i1,i2
          k0 = 1
@@ -158,10 +177,13 @@
          elseif(pe2(i,k) .ge. pe1(i,km+1)) then
 ! Entire grid below old ps
 !#ifdef NGGPS_SUBMITTED
-!            q2(i,k) = a4(3,i,km)   ! this is not good.
+if(NGGPS_SUBMITTED) then
+            q2(i,k) = a4(3,i,km)   ! this is not good.
 !#else
+else
             q2(i,k) = q1(i,km)
 !#endif
+endif
          else
 
          do 45 L=k0,km
@@ -213,10 +235,13 @@
         if(delp > 0.) then
 ! Extended below old ps
 !#ifdef NGGPS_SUBMITTED
-!           qsum = qsum + delp * a4(3,i,km)    ! not good.
+if(NGGPS_SUBMITTED) then
+           qsum = qsum + delp * a4(3,i,km)    ! not good.
 !#else
+else
            qsum = qsum + delp * q1(i,km)
 !#endif
+endif
           dpsum = dpsum + delp
         endif
 123     q2(i,k) = qsum / dpsum
@@ -227,10 +252,8 @@
  end subroutine mappm
 
  subroutine cs_profile(qs, a4, delp, km, i1, i2, iv, kord)
- use ISO_FORTRAN_ENV
 ! Optimized vertical profile reconstruction:
 ! Latest: Apr 2008 S.-J. Lin, NOAA/GFDL
- integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2
  integer, intent(in):: km      !< vertical dimension
  integer, intent(in):: iv      !< iv =-1: winds
@@ -248,6 +271,7 @@
  real(kind=8)  bet, a_bot, grat
  real(kind=8)  pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
+
 
  if ( iv .eq. -2 ) then
       do i=i1,i2

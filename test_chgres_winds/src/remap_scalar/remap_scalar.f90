@@ -30,6 +30,7 @@
  real(kind=8), dimension(is:ie,js:je,npz)        ::  Atm_delz
  real(kind=8), dimension(is:ie,js:je,npz)        ::  Atm_w
  real(kind=8), dimension(is:ie,npz+1,js:je)      ::  Atm_peln
+ !real(kind=8), dimension(:,:),     intent(IN)    ::  Atm_phis ! (768, 768)
  real(kind=8), dimension(is:ie,npz)              ::  dp2
  real(kind=8), dimension(is:ie,npz)              ::  qn1
  real(kind=8), dimension(is:ie,km+1)             ::  pe0
@@ -60,9 +61,13 @@
 
  !Atm_ak = ak0(2:km+1)
  !Atm_bk = bk0(2:km+1)
+ !       write(*,*) "Atm_ak", Atm_ak
+ !       write(*,*) "Atm_bk", Atm_bk
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
- !Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
+
+! Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
+!  Atm_phis(is:ie,js:je) = Atm_phis(is:ie,js:je)*grav
 !   write(*,*) Atm_phis(1,1)
 !   write(*,*) Atm_phis(1,2)
 !   write(*,*) Atm_phis(1,3)
@@ -92,6 +97,8 @@
         do i=is,ie
            pe0(i,k) = ak0(k) + bk0(k)*psc(i,j)
            pn0(i,k) = log(pe0(i,k))
+!x           if(i==689+1 .and. j==433+1 .and. k== 1) write(*,*) "psc(",i,",",j,")",psc(i,j), k
+!x           if(i==689+1 .and. j==433+1 .and. k==km+1) write(*,*) "pe0(",i,",",k,")",pe0(i,j), k
         enddo
      enddo
 
@@ -110,10 +117,16 @@
         do k=km+k2-1, 2, -1
            if( Atm_phis(i,j).le.gz(k) .and. Atm_phis(i,j).ge.gz(k+1) ) then
               pst = pn(k) + (pn(k+1)-pn(k))*(gz(k)-Atm_phis(i,j))/(gz(k)-gz(k+1))
+!x              if(i==689+1 .and. j==433+1) write(*,*) "Atm_phis(",i,",",j,")",Atm_phis(i,j)
+!x              if(i==689+1 .and. j==433+1) write(*,*) "gz(",k,")",gz(k)
+!x              if(i==689+1 .and. j==433+1) write(*,*) "pn(k)",pn(k)
+!x              if(i==689+1 .and. j==433+1) write(*,*) "pst",pst
+!x              if(i==689+1 .and. j==433+1) write(*,*) "zh(i,j,k)",zh(i,j,k)
               go to 123
            endif
         enddo
 123     Atm_ps(i,j) = exp(pst)
+!x        if(i==689+1 .and. j==433+1) write(*,*) "Atm_ps(",i,",",j,")",Atm_ps(i,j)
 
  ! ------------------
  ! Find 500-mb height
@@ -136,6 +149,23 @@
         do i=is,ie
            pe1(i,k) = Atm_ak(k) + Atm_bk(k)*Atm_ps(i,j)
            pn1(i,k) = log(pe1(i,k))
+
+
+           !if(i==689+1 .and. j==433+1) then
+           !    if(Atm_ps(i,j) - 93581.3203344323 < 0.0001) then
+               if(psc(91,677) - 97690.7 < 0.01 .and. j==1 .and. k==2) then
+                   if(k== 2) then
+!x                       write(*,*) "pe1(",i,",",k,")",pe1(i,k), k
+!x                       write(*,*) "Atm_ak(k)",Atm_ak(k)
+!x                       write(*,*) "Atm_bk(k)",Atm_bk(k)
+!x                       write(*,*) "Atm_ps(",i,",",j,")",Atm_ps(i,j), k
+!x                       write(*,*) "log(pe1(i,k))",log(pe1(i,k))
+!x                       write(*,*) "pn1(i,k)",pn1(i,k) 
+                   endif
+               endif
+           !endif
+
+
         enddo
      enddo
 
@@ -144,6 +174,9 @@
         do i=is,ie
            dp2(i,k) = pe1(i,k+1) - pe1(i,k)
            Atm_delp(i,j,k) = dp2(i,k)
+!x           if(i==689+1 .and. j==433+1 .and. k==npz) then
+!x           write(*,*) "Atm_delp(",i,",",j,",",k,")",Atm_delp(i,j,k)
+!x           endif
         enddo
      enddo
 
@@ -153,6 +186,9 @@
            do k=1,km
               do i=is,ie
                  qp(i,k) = qa(i,j,k,iq)
+!x           if(i==689+1 .and. j==433+1 .and. k==npz .and. iq==1) then
+!x           write(*,*) "qa(",i,",",j,",",k,",",iq,")",qa(i,j,k,iq)
+!x           endif
               enddo
            enddo
            call mappm(km, pe0, qp, npz, pe1,  qn1, is,ie, 0, 8, Atm_ptop)
@@ -164,6 +200,9 @@
            do k=1,npz
               do i=is,ie
                  Atm_q(i,j,k,iq) = qn1(i,k)
+!            if(i==689+1 .and. j==433+1 .and. k==npz .and. iq==1) then
+!            write(*,*) "Atm_q(",i,",",j,",",k,",",iq,")",Atm_q(i,j,k,iq)
+!            endif
               enddo
            enddo
         endif
@@ -228,6 +267,7 @@
 ! Compute true temperature using hydrostatic balance
 !----------------------------------------------------
       !if (.not. data_source_fv3gfs .or. .not. present(t_in)) then
+      !if (.not. data_source_fv3gfs ) then
       if (data_source_fv3gfs) then
         do k=1,npz
            Atm_pt(i,j,k) = (gz_fv(k)-gz_fv(k+1))/( rdgas*(pn1(i,k+1)-pn1(i,k))*(1.+zvir*Atm_q(i,j,k,sphum)) )
@@ -344,7 +384,7 @@
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
 !! one set of vertical levels to another.
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
- use ISO_FORTRAN_ENV
+
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
@@ -356,7 +396,6 @@
 ! pe2: pressure at layer edges (from model top to bottom surface)
 !      in the new vertical coordinate
 
- integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2, km, kn, kord, iv
  real(kind=8), intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
                                                       !!      surface in the ORIGINAL vertical coordinate
@@ -373,6 +412,7 @@
       integer i, k, l
       integer k0, k1
       real(kind=8) pl, pr, tt, delp, qsum, dpsum, esl, r3, r23
+      logical :: NGGPS_SUBMITTED=.true.
 
       do k=1,km
          do i=i1,i2
@@ -391,12 +431,14 @@
 ! Lowest layer: constant distribution
 !------------------------------------
 !#ifdef NGGPS_SUBMITTED
-!      do i=i1,i2
-!         a4(2,i,km) = q1(i,km)
-!         a4(3,i,km) = q1(i,km)
-!         a4(4,i,km) = 0.
-!      enddo
+if(NGGPS_SUBMITTED) then
+      do i=i1,i2
+         a4(2,i,km) = q1(i,km)
+         a4(3,i,km) = q1(i,km)
+         a4(4,i,km) = 0.
+      enddo
 !#endif
+endif
 
       do 5555 i=i1,i2
          k0 = 1
@@ -408,10 +450,13 @@
          elseif(pe2(i,k) .ge. pe1(i,km+1)) then
 ! Entire grid below old ps
 !#ifdef NGGPS_SUBMITTED
-!            q2(i,k) = a4(3,i,km)   ! this is not good.
+if(NGGPS_SUBMITTED) then
+            q2(i,k) = a4(3,i,km)   ! this is not good.
 !#else
+else
             q2(i,k) = q1(i,km)
 !#endif
+endif
          else
 
          do 45 L=k0,km
@@ -463,10 +508,13 @@
         if(delp > 0.) then
 ! Extended below old ps
 !#ifdef NGGPS_SUBMITTED
-!           qsum = qsum + delp * a4(3,i,km)    ! not good.
+if(NGGPS_SUBMITTED) then
+           qsum = qsum + delp * a4(3,i,km)    ! not good.
 !#else
+else
            qsum = qsum + delp * q1(i,km)
 !#endif
+endif
           dpsum = dpsum + delp
         endif
 123     q2(i,k) = qsum / dpsum
@@ -477,10 +525,8 @@
  end subroutine mappm
 
  subroutine cs_profile(qs, a4, delp, km, i1, i2, iv, kord)
- use ISO_FORTRAN_ENV
 ! Optimized vertical profile reconstruction:
 ! Latest: Apr 2008 S.-J. Lin, NOAA/GFDL
- integer, parameter :: r8_kind = selected_real_kind(15) ! 15 decimal digits
  integer, intent(in):: i1, i2
  integer, intent(in):: km      !< vertical dimension
  integer, intent(in):: iv      !< iv =-1: winds
@@ -498,6 +544,7 @@
  real(kind=8)  bet, a_bot, grat
  real(kind=8)  pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
+
 
  if ( iv .eq. -2 ) then
       do i=i1,i2
@@ -918,6 +965,7 @@
       real(kind=8) fac
       real(kind=8) a1, a2, c1, c2, c3, d1, d2
       real(kind=8) qm, dq, lac, qmp, pmp
+      logical :: BOT_MONO=.true.
 
       km1 = km - 1
        it = i2 - i1 + 1
@@ -1024,21 +1072,22 @@
 ! Enforce constraint on the "slope" at the surface
 
 !#ifdef BOT_MONO
-!      do i=i1,i2
-!         a4(4,i,km) = 0
-!         if( a4(3,i,km) * a4(1,i,km) <= 0. ) a4(3,i,km) = 0.
-!         d1 = a4(1,i,km) - a4(2,i,km)
-!         d2 = a4(3,i,km) - a4(1,i,km)
-!         if ( d1*d2 < 0. ) then
-!              a4(2,i,km) = a4(1,i,km)
-!              a4(3,i,km) = a4(1,i,km)
-!         else
-!              dq = sign(min(abs(d1),abs(d2),0.5*abs(delq(i,km-1))), d1)
-!              a4(2,i,km) = a4(1,i,km) - dq
-!              a4(3,i,km) = a4(1,i,km) + dq
-!         endif
-!      enddo
-!#else
+if(BOT_MONO) then
+      do i=i1,i2
+         a4(4,i,km) = 0
+         if( a4(3,i,km) * a4(1,i,km) <= 0. ) a4(3,i,km) = 0.
+         d1 = a4(1,i,km) - a4(2,i,km)
+         d2 = a4(3,i,km) - a4(1,i,km)
+         if ( d1*d2 < 0. ) then
+              a4(2,i,km) = a4(1,i,km)
+              a4(3,i,km) = a4(1,i,km)
+         else
+              dq = sign(min(abs(d1),abs(d2),0.5*abs(delq(i,km-1))), d1)
+              a4(2,i,km) = a4(1,i,km) - dq
+              a4(3,i,km) = a4(1,i,km) + dq
+         endif
+      enddo
+else
       if( iv==0 ) then
           do i=i1,i2
              a4(2,i,km) = max(0.,a4(2,i,km))
@@ -1049,7 +1098,7 @@
              if( a4(1,i,km)*a4(3,i,km) <= 0. )  a4(3,i,km) = 0.
           enddo
       endif
-!#endif
+endif
 
    do k=1,km1
       do i=i1,i2
@@ -1372,30 +1421,32 @@
    real(kind=8)::  dm(km)
    integer i, k, ic !, k1
    real(kind=8) qup, qly, dup, dq, sum0, sum1, fac
+   logical :: DEV_GFS_PHYS=.true.
 
    do ic=1,nq
 !#ifdef DEV_GFS_PHYS
-!! Bottom up:
-!      do k=km,2,-1
-!         k1 = k-1
-!         do i=1,im
-!           if( q(i,k,ic) < 0. ) then
-!               q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
-!               q(i,k ,ic) = 0.
-!           endif
-!         enddo
-!      enddo
-!! Top down:
-!      do k=1,km-1
-!         k1 = k+1
-!         do i=1,im
-!            if( q(i,k,ic) < 0. ) then
-!                q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
-!                q(i,k ,ic) = 0.
-!            endif
-!         enddo
-!      enddo
-!#else
+if(DEV_GFS_PHYS) then
+! Bottom up:
+      do k=km,2,-1
+         k1 = k-1
+         do i=1,im
+           if( q(i,k,ic) < 0. ) then
+               q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
+               q(i,k ,ic) = 0.
+           endif
+         enddo
+      enddo
+! Top down:
+      do k=1,km-1
+         k1 = k+1
+         do i=1,im
+            if( q(i,k,ic) < 0. ) then
+                q(i,k1,ic) = q(i,k1,ic) + q(i,k,ic)*dp(i,k)/dp(i,k1)
+                q(i,k ,ic) = 0.
+            endif
+         enddo
+      enddo
+else
 ! Top layer
       do i=1,im
          if( q(i,1,ic) < 0. ) then
@@ -1463,7 +1514,7 @@
 
          endif
       enddo
-!#endif
+endif
 
    enddo
  end subroutine fillz
