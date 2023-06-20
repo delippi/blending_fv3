@@ -692,6 +692,7 @@ endif
       real(kind=8) fac
       real(kind=8) a1, a2, c1, c2, c3, d1, d2
       real(kind=8) qm, dq, lac, qmp, pmp
+      logical :: BOT_MONO=.true.
 
       km1 = km - 1
        it = i2 - i1 + 1
@@ -798,21 +799,22 @@ endif
 ! Enforce constraint on the "slope" at the surface
 
 !#ifdef BOT_MONO
-!      do i=i1,i2
-!         a4(4,i,km) = 0
-!         if( a4(3,i,km) * a4(1,i,km) <= 0. ) a4(3,i,km) = 0.
-!         d1 = a4(1,i,km) - a4(2,i,km)
-!         d2 = a4(3,i,km) - a4(1,i,km)
-!         if ( d1*d2 < 0. ) then
-!              a4(2,i,km) = a4(1,i,km)
-!              a4(3,i,km) = a4(1,i,km)
-!         else
-!              dq = sign(min(abs(d1),abs(d2),0.5*abs(delq(i,km-1))), d1)
-!              a4(2,i,km) = a4(1,i,km) - dq
-!              a4(3,i,km) = a4(1,i,km) + dq
-!         endif
-!      enddo
-!#else
+if(BOT_MONO) then
+      do i=i1,i2
+         a4(4,i,km) = 0
+         if( a4(3,i,km) * a4(1,i,km) <= 0. ) a4(3,i,km) = 0.
+         d1 = a4(1,i,km) - a4(2,i,km)
+         d2 = a4(3,i,km) - a4(1,i,km)
+         if ( d1*d2 < 0. ) then
+              a4(2,i,km) = a4(1,i,km)
+              a4(3,i,km) = a4(1,i,km)
+         else
+              dq = sign(min(abs(d1),abs(d2),0.5*abs(delq(i,km-1))), d1)
+              a4(2,i,km) = a4(1,i,km) - dq
+              a4(3,i,km) = a4(1,i,km) + dq
+         endif
+      enddo
+else
       if( iv==0 ) then
           do i=i1,i2
              a4(2,i,km) = max(0.,a4(2,i,km))
@@ -823,7 +825,7 @@ endif
              if( a4(1,i,km)*a4(3,i,km) <= 0. )  a4(3,i,km) = 0.
           enddo
       endif
-!#endif
+endif
 
    do k=1,km1
       do i=i1,i2

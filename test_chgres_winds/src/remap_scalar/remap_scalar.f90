@@ -48,6 +48,7 @@
  logical :: hydrostatic = .true.
  logical :: nggps_ic = .true.
  logical :: ncep_ic = .false.
+ logical :: USE_ISOTHERMO=.false.
 
 !Constants
  !real(kind=8), parameter:: grav= 9.80616   !< acceleration due to gravity (m/s2)
@@ -58,19 +59,8 @@
 
 
  k2 = max(10, km/2)
-
- !Atm_ak = ak0(2:km+1)
- !Atm_bk = bk0(2:km+1)
- !       write(*,*) "Atm_ak", Atm_ak
- !       write(*,*) "Atm_bk", Atm_bk
  itoa = km - npz + 1
  Atm_ptop = Atm_ak(1)
-
-! Atm_phis(is:ie,js:je) = zh(is:ie,js:je,km+1)*grav
-!  Atm_phis(is:ie,js:je) = Atm_phis(is:ie,js:je)*grav
-!   write(*,*) Atm_phis(1,1)
-!   write(*,*) Atm_phis(1,2)
-!   write(*,*) Atm_phis(1,3)
 
  ! This is the order in my python code
  sphum   = 1
@@ -87,18 +77,15 @@
 !$OMP                    Atm_phis,Atm_ak,Atm_bk,Atm_ptop, &
 !$OMP                    Atm_ps,Atm_delp,Atm_w,Atm_q, &
 !$OMP                    Atm_pt,Atm_peln,Atm_delz, &
-!$OMP                    data_source_fv3gfs,hydrostatic,nwat,ncep_ic,nggps_ic) &
+!$OMP                    data_source_fv3gfs,hydrostatic,nwat,ncep_ic,nggps_ic,USE_ISOTHERMO) &
 !$OMP             private(l,m,pst,pn,gz,pe0,pn0,pe1,pn1,dp2,qp,qn1,gz_fv)
 
 
   do 5000 j=js,je
-     !write(*,*) "j=",j
      do k=1,km+1
         do i=is,ie
            pe0(i,k) = ak0(k) + bk0(k)*psc(i,j)
            pn0(i,k) = log(pe0(i,k))
-!x           if(i==689+1 .and. j==433+1 .and. k== 1) write(*,*) "psc(",i,",",j,")",psc(i,j), k
-!x           if(i==689+1 .and. j==433+1 .and. k==km+1) write(*,*) "pe0(",i,",",k,")",pe0(i,j), k
         enddo
      enddo
 
@@ -117,16 +104,10 @@
         do k=km+k2-1, 2, -1
            if( Atm_phis(i,j).le.gz(k) .and. Atm_phis(i,j).ge.gz(k+1) ) then
               pst = pn(k) + (pn(k+1)-pn(k))*(gz(k)-Atm_phis(i,j))/(gz(k)-gz(k+1))
-!x              if(i==689+1 .and. j==433+1) write(*,*) "Atm_phis(",i,",",j,")",Atm_phis(i,j)
-!x              if(i==689+1 .and. j==433+1) write(*,*) "gz(",k,")",gz(k)
-!x              if(i==689+1 .and. j==433+1) write(*,*) "pn(k)",pn(k)
-!x              if(i==689+1 .and. j==433+1) write(*,*) "pst",pst
-!x              if(i==689+1 .and. j==433+1) write(*,*) "zh(i,j,k)",zh(i,j,k)
               go to 123
            endif
         enddo
 123     Atm_ps(i,j) = exp(pst)
-!x        if(i==689+1 .and. j==433+1) write(*,*) "Atm_ps(",i,",",j,")",Atm_ps(i,j)
 
  ! ------------------
  ! Find 500-mb height
@@ -149,23 +130,6 @@
         do i=is,ie
            pe1(i,k) = Atm_ak(k) + Atm_bk(k)*Atm_ps(i,j)
            pn1(i,k) = log(pe1(i,k))
-
-
-           !if(i==689+1 .and. j==433+1) then
-           !    if(Atm_ps(i,j) - 93581.3203344323 < 0.0001) then
-               if(psc(91,677) - 97690.7 < 0.01 .and. j==1 .and. k==2) then
-                   if(k== 2) then
-!x                       write(*,*) "pe1(",i,",",k,")",pe1(i,k), k
-!x                       write(*,*) "Atm_ak(k)",Atm_ak(k)
-!x                       write(*,*) "Atm_bk(k)",Atm_bk(k)
-!x                       write(*,*) "Atm_ps(",i,",",j,")",Atm_ps(i,j), k
-!x                       write(*,*) "log(pe1(i,k))",log(pe1(i,k))
-!x                       write(*,*) "pn1(i,k)",pn1(i,k) 
-                   endif
-               endif
-           !endif
-
-
         enddo
      enddo
 
@@ -174,9 +138,6 @@
         do i=is,ie
            dp2(i,k) = pe1(i,k+1) - pe1(i,k)
            Atm_delp(i,j,k) = dp2(i,k)
-!x           if(i==689+1 .and. j==433+1 .and. k==npz) then
-!x           write(*,*) "Atm_delp(",i,",",j,",",k,")",Atm_delp(i,j,k)
-!x           endif
         enddo
      enddo
 
@@ -186,9 +147,6 @@
            do k=1,km
               do i=is,ie
                  qp(i,k) = qa(i,j,k,iq)
-!x           if(i==689+1 .and. j==433+1 .and. k==npz .and. iq==1) then
-!x           write(*,*) "qa(",i,",",j,",",k,",",iq,")",qa(i,j,k,iq)
-!x           endif
               enddo
            enddo
            call mappm(km, pe0, qp, npz, pe1,  qn1, is,ie, 0, 8, Atm_ptop)
@@ -200,9 +158,6 @@
            do k=1,npz
               do i=is,ie
                  Atm_q(i,j,k,iq) = qn1(i,k)
-!            if(i==689+1 .and. j==433+1 .and. k==npz .and. iq==1) then
-!            write(*,*) "Atm_q(",i,",",j,",",k,",",iq,")",Atm_q(i,j,k,iq)
-!            endif
               enddo
            enddo
         endif
@@ -238,24 +193,25 @@
       do k=1,npz
 ! Searching using FV3 log(pe): pn1
 !#ifdef USE_ISOTHERMO
-!         do l=m,km
-!            if ( (pn1(i,k).le.pn(l+1)) .and. (pn1(i,k).ge.pn(l)) ) then
-!                gz_fv(k) = gz(l) + (gz(l+1)-gz(l))*(pn1(i,k)-pn(l))/(pn(l+1)-pn(l))
-!                goto 555
-!            elseif ( pn1(i,k) .gt. pn(km+1) ) then
-!! Isothermal under ground; linear in log-p extra-polation
-!                gz_fv(k) = gz(km+1) + (gz_fv(npz+1)-gz(km+1))*(pn1(i,k)-pn(km+1))/(pn1(i,npz+1)-pn(km+1))
-!                goto 555
-!            endif
-!         enddo
-!#else
+if(USE_ISOTHERMO) then
+         do l=m,km
+            if ( (pn1(i,k).le.pn(l+1)) .and. (pn1(i,k).ge.pn(l)) ) then
+                gz_fv(k) = gz(l) + (gz(l+1)-gz(l))*(pn1(i,k)-pn(l))/(pn(l+1)-pn(l))
+                goto 555
+            elseif ( pn1(i,k) .gt. pn(km+1) ) then
+! Isothermal under ground; linear in log-p extra-polation
+                gz_fv(k) = gz(km+1) + (gz_fv(npz+1)-gz(km+1))*(pn1(i,k)-pn(km+1))/(pn1(i,npz+1)-pn(km+1))
+                goto 555
+            endif
+         enddo
+else
          do l=m,km+k2-1
             if ( (pn1(i,k).le.pn(l+1)) .and. (pn1(i,k).ge.pn(l)) ) then
                 gz_fv(k) = gz(l) + (gz(l+1)-gz(l))*(pn1(i,k)-pn(l))/(pn(l+1)-pn(l))
                 goto 555
             endif
          enddo
-!#endif
+endif
 555   m = l
       enddo
 
@@ -310,31 +266,31 @@
                   Atm_q(i,j,k,liq_wat) = qn1(i,k)
                   Atm_q(i,j,k,ice_wat) = 0.
 !#ifdef ORIG_CLOUDS_PART
-!               else if ( Atm_pt(i,j,k) < 258.16 ) then  ! < -15C all ice_wat
-!                  Atm_q(i,j,k,liq_wat) = 0.
-!                  Atm_q(i,j,k,ice_wat) = qn1(i,k)
-!               else                                     ! between -15~0C: linear interpolation
-!                  Atm_q(i,j,k,liq_wat) = qn1(i,k)*((Atm_pt(i,j,k)-258.16)/15.)
-!                  Atm_q(i,j,k,ice_wat) = qn1(i,k) - Atm_q(i,j,k,liq_wat)
-!               endif
-!#else
-               else if ( Atm_pt(i,j,k) < 233.16 ) then  ! < -40C all ice_wat                  Atm_q(i,j,k,liq_wat) = 0.
+               else if ( Atm_pt(i,j,k) < 258.16 ) then  ! < -15C all ice_wat
+                  Atm_q(i,j,k,liq_wat) = 0.
                   Atm_q(i,j,k,ice_wat) = qn1(i,k)
-               else
-                  if ( k.eq.1 ) then  ! between [-40,0]: linear interpolation
-                     Atm_q(i,j,k,liq_wat) = qn1(i,k)*((Atm_pt(i,j,k)-233.16)/40.)
-                     Atm_q(i,j,k,ice_wat) = qn1(i,k) - Atm_q(i,j,k,liq_wat)
-                  else
-                     if (Atm_pt(i,j,k)<258.16 .and. Atm_q(i,j,k-1,ice_wat)>1.e-5 ) then
-                        Atm_q(i,j,k,liq_wat) = 0.
-                        Atm_q(i,j,k,ice_wat) = qn1(i,k)
-                     else  ! between [-40,0]: linear interpolation
-                        Atm_q(i,j,k,liq_wat) = qn1(i,k)*((Atm_pt(i,j,k)-233.16)/40.)
-                        Atm_q(i,j,k,ice_wat) = qn1(i,k) - Atm_q(i,j,k,liq_wat)
-                     endif
-                  endif
+               else                                     ! between -15~0C: linear interpolation
+                  Atm_q(i,j,k,liq_wat) = qn1(i,k)*((Atm_pt(i,j,k)-258.16)/15.)
+                  Atm_q(i,j,k,ice_wat) = qn1(i,k) - Atm_q(i,j,k,liq_wat)
                endif
-
+!#else
+!               else if ( Atm_pt(i,j,k) < 233.16 ) then  ! < -40C all ice_wat  Atm_q(i,j,k,liq_wat) = 0.
+!                  Atm_q(i,j,k,ice_wat) = qn1(i,k)
+!               else
+!                  if ( k.eq.1 ) then  ! between [-40,0]: linear interpolation
+!                     Atm_q(i,j,k,liq_wat) = qn1(i,k)*((Atm_pt(i,j,k)-233.16)/40.)
+!                     Atm_q(i,j,k,ice_wat) = qn1(i,k) - Atm_q(i,j,k,liq_wat)
+!                  else
+!                     if (Atm_pt(i,j,k)<258.16 .and. Atm_q(i,j,k-1,ice_wat)>1.e-5 ) then
+!                        Atm_q(i,j,k,liq_wat) = 0.
+!                        Atm_q(i,j,k,ice_wat) = qn1(i,k)
+!                     else  ! between [-40,0]: linear interpolation
+!                        Atm_q(i,j,k,liq_wat) = qn1(i,k)*((Atm_pt(i,j,k)-233.16)/40.)
+!                        Atm_q(i,j,k,ice_wat) = qn1(i,k) - Atm_q(i,j,k,liq_wat)
+!                     endif
+!                  endif
+!               endif
+!
 !#endif
                if (nwat .eq. 6) then ! no need to check for nwat=7 (hail) since only nwat=3,6 treated here
                   Atm_q(i,j,k,rainwat) = 0.
@@ -1518,6 +1474,3 @@ endif
 
    enddo
  end subroutine fillz
-
-
-
