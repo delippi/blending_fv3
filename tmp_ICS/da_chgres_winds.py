@@ -100,6 +100,9 @@ if VertRemapScalar:
     #Atm_phis  = np.float64(orognc["orog_raw"][:,:])*9.80665 # not quite right either.
     Atm_phis  = np.float64(orognc["orog_filt"][:,:])*9.80665 # I think this is the correct phis
 
+    ak0[0] = 1.000000000000000E-009
+    bk0[0] = 1.000000000000000E-009
+
     sphum   = np.float64(coldnc["sphum"][:, :, :]) # ( lev, lat, lon) == (128, 768, 768)
     liq_wat = np.float64(coldnc["liq_wat"][:, :, :])
     o3mr    = np.float64(coldnc["o3mr"][:, :, :])
@@ -137,9 +140,8 @@ if VertRemapScalar:
     Atm_ps   = 1.0*ps[:,:]                   # initialize to zero (need for remap_dwinds)
 
 
-    if True:
-        remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
-                          isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
+    remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
+                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
 
     print("Starting VertRemapScalar... Done.")
 

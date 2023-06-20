@@ -9,14 +9,15 @@
 
 ulimit -s unlimited
 export OMP_STACKSIZE=2G
-export OMP_NUM_THREADS="52"  #largest value tried that doesn't crash with fastest time =  (s)
+export OMP_NUM_THREADS="96"  #largest value tried that doesn't crash with fastest time = 96 (30s)
                              #1
                              #2
                              #4
                              #13
                              #26
-                             #52
-                             #364
+                             #52  (57s)
+                             #96  (30s)
+                             #128 (32s)
 export FI_OFI_RXM_SAR_LIMIT=3145728
 export FI_MR_CACHE_MAX_COUNT=0
 export MPICH_OFI_STARTUP_CONNECT=1
@@ -39,19 +40,17 @@ cp ./rrfs/RESTART/20220720.180000.fv_core.res.tile1.nc   ./fv_core.res.tile1.nc
 cp ./rrfs/RESTART/20220720.180000.fv_core.res.nc         ./fv_core.res.nc
 
 # FIX FILES
-halo=".halo4"
-halo=""
 FIX_DIR=/lfs/h2/emc/da/noscrub/donald.e.lippi/rrfs/ufs-srweather-app/regional_workflow/fix/lam/RRFS_CONUS_3km/
-cp $FIX_DIR/C3359_grid.tile7${halo}.nc     ./C3359_grid.tile7${halo}.nc
-cp $FIX_DIR/C3359_oro_data.tile7${halo}.nc ./C3359_oro_data.tile7${halo}.nc
+cp $FIX_DIR/C3359_grid.tile7.nc     ./C3359_grid.tile7.nc
+cp $FIX_DIR/C3359_oro_data.tile7.halo0.nc ./C3359_oro_data.tile7.halo0.nc
 echo "Copying files.............. Done."
 
 warm=./fv_core.res.tile1.nc
 cold=./out.atm.tile7.nc
-grid=./C3359_grid.tile7${halo}.nc
+grid=./C3359_grid.tile7.nc
 akbk=./fv_core.res.nc
 akbkcold=./gfs_ctrl.nc
-orog=./C3359_oro_data.tile7${halo}.nc
+orog=./C3359_oro_data.tile7.halo0.nc
 bndy=./gfs.bndy.nc
 
 python da_chgres_winds.py $warm $cold $grid $akbk $akbkcold $orog $bndy
