@@ -14,16 +14,22 @@ ctl3nc = Dataset(ctl3)
 
 temp=False
 ugrd=False
+delp=False
+sphum=False
+temp_sfc=False
+ugrd_sfc=False
+delp_sfc=False
+sphum_sfc=False
 
+
+#temp=True
+#ugrd=True
+#delp=True
+#sphum=True
 temp_sfc=True
 ugrd_sfc=True
 delp_sfc=True
 sphum_sfc=True
-
-#temp_sfc=False
-#ugrd_sfc=False
-#delp_sfc=False
-#sphum_sfc=False
 
 i=693; j=442 #random
 #i=295; j=126 #temp
@@ -32,14 +38,51 @@ i=693; j=442 #random
 #i=295; j=126 #sphum
 #i=688; j=438 #ugrd
 
+k=-1
 
 def max_index_2d(arr):
     max_index = np.argmax(np.abs(arr))
     max_index_2d = np.unravel_index(max_index, arr.shape)
-    print(f"Max value index: i={max_index_2d[0]}; j={max_index_2d[1]}")
+    print(f"Max value index: j={max_index_2d[0]}; i={max_index_2d[1]}")
+    print("")
+def max_index_3d(arr):
+    max_index = np.argmax(np.abs(arr))
+    max_index_3d = np.unravel_index(max_index, arr.shape)
+    print(f"Max value index: k={max_index_3d[0]}; j={max_index_3d[1]}; i={max_index_3d[2]}")
     print("")
 
 expnc.createDimension('nlev_1', size=1)
+
+
+if sphum:
+    print("Working on sphum")
+    # Get the variable from each of the 3 files. They all use different names...
+    var0 = np.float64(expnc["sphum_cold2fv3"][:, :, :])# float       t(          lev,     lat,     lon) ;
+    var1 = np.float64(ctl1nc["sphum_cold"][0,1:128, :, :]) # double t_cold(Time, zaxis_2, yaxis_1, xaxis_1) ;
+    var2 = np.float64(ctl3nc["sphum"][0,:, :, :])      # double      T(Time, zaxis_1, yaxis_2, xaxis_1) ;
+
+    # Compute the diffs.
+    diff_chgreswinds_minus_coldstartwinds = var0 - var1
+    diff_chgreswinds_minus_cold2fv3 = var0 - var2
+    diff_coldstartwinds_minus_cold2fv3 = var1 - var2
+
+    print(var0[k,i,j])
+    print(var1[k,i,j])
+    print(var2[k,i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3)))
+    max_index_3d(diff_chgreswinds_minus_cold2fv3)
+
+    # Create new variables to store the diffs in.
+    var_to_duplicate = expnc.variables["sphum_cold2fv3"]
+    expnc.createVariable("sphumdiff_chgreswinds_minus_coldstartwinds", var_to_duplicate.datatype, ('nlev','lat','lon'))
+    expnc.createVariable("sphumdiff_chgreswinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','lat','lon'))
+    expnc.createVariable("sphumdiff_coldstartwinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','lat','lon'))
+
+    # Fill in the new variables with the diff values.
+    expnc.variables["sphumdiff_chgreswinds_minus_coldstartwinds"][:,:] = diff_chgreswinds_minus_coldstartwinds[:,:]
+    expnc.variables["sphumdiff_chgreswinds_minus_cold2fv3"][:,:] = diff_chgreswinds_minus_cold2fv3[:,:]
+    expnc.variables["sphumdiff_coldstartwinds_minus_cold2fv3"][:,:] = diff_coldstartwinds_minus_cold2fv3[:,:]
+
 if sphum_sfc:
     print("Working on sphum")
     # Get the variable from each of the 3 files. They all use different names...
@@ -69,6 +112,34 @@ if sphum_sfc:
     expnc.variables["sphumdiff_chgreswinds_minus_cold2fv3"][:,:] = diff_chgreswinds_minus_cold2fv3[:,:]
     expnc.variables["sphumdiff_coldstartwinds_minus_cold2fv3"][:,:] = diff_coldstartwinds_minus_cold2fv3[:,:]
 
+if delp:
+    print("Working on delp")
+    # Get the variable from each of the 3 files. They all use different names...
+    var0 = np.float64(expnc["delp_cold2fv3"][:, :, :])# float       t(          lev,     lat,     lon) ;
+    var1 = np.float64(ctl1nc["delp_cold"][0,1:128, :, :]) # double t_cold(Time, zaxis_2, yaxis_1, xaxis_1) ;
+    var2 = np.float64(ctl2nc["delp"][0,:, :, :])      # double      T(Time, zaxis_1, yaxis_2, xaxis_1) ;
+
+    # Compute the diffs.
+    diff_chgreswinds_minus_coldstartwinds = var0 - var1
+    diff_chgreswinds_minus_cold2fv3 = var0 - var2
+    diff_coldstartwinds_minus_cold2fv3 = var1 - var2
+
+    print(var0[k,i,j])
+    print(var1[k,i,j])
+    print(var2[k,i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3)))
+    max_index_3d(diff_chgreswinds_minus_cold2fv3)
+
+    # Create new variables to store the diffs in.
+    var_to_duplicate = expnc.variables["delp_cold2fv3"]
+    expnc.createVariable("delpdiff_chgreswinds_minus_coldstartwinds", var_to_duplicate.datatype, ('nlev','lat','lon'))
+    expnc.createVariable("delpdiff_chgreswinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','lat','lon'))
+    expnc.createVariable("delpdiff_coldstartwinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','lat','lon'))
+
+    # Fill in the new variables with the diff values.
+    expnc.variables["delpdiff_chgreswinds_minus_coldstartwinds"][:,:] = diff_chgreswinds_minus_coldstartwinds[:,:]
+    expnc.variables["delpdiff_chgreswinds_minus_cold2fv3"][:,:] = diff_chgreswinds_minus_cold2fv3[:,:]
+    expnc.variables["delpdiff_coldstartwinds_minus_cold2fv3"][:,:] = diff_coldstartwinds_minus_cold2fv3[:,:]
 
 if delp_sfc:
     print("Working on delp")
@@ -99,7 +170,34 @@ if delp_sfc:
     expnc.variables["delpdiff_chgreswinds_minus_cold2fv3"][:,:] = diff_chgreswinds_minus_cold2fv3[:,:]
     expnc.variables["delpdiff_coldstartwinds_minus_cold2fv3"][:,:] = diff_coldstartwinds_minus_cold2fv3[:,:]
 
+if temp:
+    print("Working on temp")
+    # Get the variable from each of the 3 files. They all use different names...
+    var0 = np.float64(expnc["t_cold2fv3"][:, :, :])# float       t(          lev,     lat,     lon) ;
+    var1 = np.float64(ctl1nc["t_cold"][0,1:128, :, :]) # double t_cold(Time, zaxis_2, yaxis_1, xaxis_1) ;
+    var2 = np.float64(ctl2nc["T"][0,:, :, :])      # double      T(Time, zaxis_1, yaxis_2, xaxis_1) ;
 
+    # Compute the diffs.
+    diff_chgreswinds_minus_coldstartwinds = var0 - var1
+    diff_chgreswinds_minus_cold2fv3 = var0 - var2
+    diff_coldstartwinds_minus_cold2fv3 = var1 - var2
+
+    print(var0[k,i,j])
+    print(var1[k,i,j])
+    print(var2[k,i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3)))
+    max_index_3d(diff_chgreswinds_minus_cold2fv3)
+
+    # Create new variables to store the diffs in.
+    var_to_duplicate = expnc.variables["t_cold2fv3"]
+    expnc.createVariable("tdiff_chgreswinds_minus_coldstartwinds", var_to_duplicate.datatype, ('nlev','lat','lon'))
+    expnc.createVariable("tdiff_chgreswinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','lat','lon'))
+    expnc.createVariable("tdiff_coldstartwinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','lat','lon'))
+
+    # Fill in the new variables with the diff values.
+    expnc.variables["tdiff_chgreswinds_minus_coldstartwinds"][:,:] = diff_chgreswinds_minus_coldstartwinds[:,:]
+    expnc.variables["tdiff_chgreswinds_minus_cold2fv3"][:,:] = diff_chgreswinds_minus_cold2fv3[:,:]
+    expnc.variables["tdiff_coldstartwinds_minus_cold2fv3"][:,:] = diff_coldstartwinds_minus_cold2fv3[:,:]
 
 if temp_sfc:
     print("Working on temp")
@@ -164,7 +262,7 @@ if ugrd_sfc:
 if ugrd:
     print("Working on u")
     # Get the variable from each of the 3 files. They all use different names...
-    var0 = np.float64(expnc["u"][:, :, :])
+    var0 = np.float64(expnc["u_cold2fv3"][:, :, :])
     var1 = np.float64(ctl1nc["ud_cold"][0,1:128,:,:]) #[0,1:128, :, :])
     var2 = np.float64(ctl2nc["u"][0,:,:,:]) #[0,:, :, :])
 
@@ -173,8 +271,16 @@ if ugrd:
     diff_chgreswinds_minus_cold2fv3 = var0 - var2
     diff_coldstartwinds_minus_cold2fv3 = var1 - var2
 
+    print(var0[k,i,j])
+    print(var1[k,i,j])
+    print(var2[k,i,j])
+    print(np.max(np.abs(diff_chgreswinds_minus_cold2fv3[:, 1:760, 1:760])))
+    print(np.max(np.abs(diff_coldstartwinds_minus_cold2fv3[:, 1:760, 1:760])))
+    max_index_3d(diff_chgreswinds_minus_cold2fv3[:, 1:760, 1:760])
+    max_index_3d(diff_coldstartwinds_minus_cold2fv3[:, 1:760, 1:760])
+
     # Create new variables to store the diffs in.
-    var_to_duplicate = expnc.variables["u"]
+    var_to_duplicate = expnc.variables["u_cold2fv3"]
     expnc.createVariable("udiff_chgreswinds_minus_coldstartwinds", var_to_duplicate.datatype, ('nlev','latp','lon'))
     expnc.createVariable("udiff_chgreswinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','latp','lon'))
     expnc.createVariable("udiff_coldstartwinds_minus_cold2fv3", var_to_duplicate.datatype, ('nlev','latp','lon'))

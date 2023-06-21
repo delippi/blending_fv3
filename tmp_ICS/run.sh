@@ -7,6 +7,7 @@
 #PBS -q dev
 #PBS -l walltime=000:45:00
 
+START=$(date +%s)
 ulimit -s unlimited
 export OMP_STACKSIZE=2G
 export OMP_NUM_THREADS="96"  #largest value tried that doesn't crash with fastest time = 96 (30s)
@@ -32,7 +33,6 @@ echo -ne "Copying files..............\r"
 # GDAS FILES
 cp ./gdas/out.atm.tile7.nc ./out.atm.tile7.nc
 cp ./gdas/gfs_ctrl.nc      ./gfs_ctrl.nc
-cp ./gdas/gfs.bndy.nc      ./gfs.bndy.nc
 
 # RRFS FILES
 cp ./rrfs/RESTART/20220720.180000.fv_core.res.tile1.nc   ./fv_core.res.tile1.nc
@@ -51,9 +51,8 @@ grid=./C3359_grid.tile7.nc
 akbk=./fv_core.res.nc
 akbkcold=./gfs_ctrl.nc
 orog=./C3359_oro_data.tile7.halo0.nc
-bndy=./gfs.bndy.nc
 
-python da_chgres_winds.py $warm $cold $grid $akbk $akbkcold $orog $bndy
+python da_chgres_winds.py $warm $cold $grid $akbk $akbkcold $orog
 
 
 # NOW RUN BLENDING STEP
@@ -62,3 +61,6 @@ reg=./fv_core.res.tile1.nc    #The warm rrfs restart
 trcr=./fv_tracer.res.tile1.nc #RRFS tracer file for sphum
 
 python da_blending_fv3.py $glb $reg $trcr
+END=$(date +%s)
+DIFF=$((END - START))
+echo "Time taken to run the code: $DIFF seconds"

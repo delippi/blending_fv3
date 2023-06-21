@@ -16,7 +16,6 @@ grid = str(sys.argv[3])
 akbk = str(sys.argv[4])
 akbkcold = str(sys.argv[5])
 orog = str(sys.argv[6])
-bndy = str(sys.argv[7])
 
 warmnc = Dataset(warm)
 coldnc = Dataset(cold, mode="a")
@@ -24,7 +23,6 @@ akbknc = Dataset(akbk)
 gridnc = Dataset(grid)
 akbkcoldnc = Dataset(akbkcold)
 orognc = Dataset(orog)
-bndync = Dataset(bndy)
 print("Reading in NETCDF4 Files... Done.")
 
 ColdStartWinds  = True
@@ -212,3 +210,6 @@ if WriteData:
 # close the nc files
 warmnc.close()
 coldnc.close()
+
+print("ColdStartWinds & VertRemap Finished.")
+tictoc.toc(tic, "Done. ")

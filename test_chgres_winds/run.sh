@@ -33,28 +33,29 @@ cd /lfs/h2/emc/da/noscrub/donald.e.lippi/blending/blending_fv3/test_chgres_winds
 
 
 echo -ne "Copying files..............\r"
+# GDAS FILES
+cp ./coldstart/out.atm.tile1.nc ./out.atm.tile1.nc
+cp ./coldstart/gfs_ctrl.nc ./gfs_ctrl.nc
+
+# WARMSTART FILES
 cp ./warmstart/gdas.20221209/00/RESTART/20221209.000000.fv_core.res.nc ./fv_core.res.nc
 cp ./warmstart/gdas.20221209/00/RESTART/20221209.000000.fv_core.res.tile1.nc ./fv_core.res.tile1.nc
 cp ./warmstart/gdas.20221209/00/RESTART/20221209.000000.fv_tracer.res.tile1.nc ./fv_tracer.res.tile1.nc
-cp ./coldstart/out.atm.tile1.nc ./out.atm.tile1.nc
-cp ./coldstart/gfs_ctrl.nc ./gfs_ctrl.nc
+
+# FIX FILES
 cp /lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768/C768_grid.tile1.nc .
 cp /lfs/h2/emc/global/noscrub/emc.global/FIX/fix/orog/20220805/C768/C768_oro_data.tile1.nc .
 echo "Copying files.............. Done."
 
-python da_chgres_winds.py #fv_core.res.tile1.nc out.atm.tile1.nc fv_core.res.nc C768_grid.tile1.nc
-#gdb python da_chgres_winds.py
-#python -m pdb da_chgres_winds.py # debugger
+warm=./fv_core.res.tile1.nc
+cold=./out.atm.tile1.nc
+grid=./C768_grid.tile1.nc
+akbk=./fv_core.res.nc
+akbkcold=./gfs_ctrl.nc
+orog=./C768_oro_data.tile1.nc
+
+python da_chgres_winds.py $warm $cold $grid $akbk $akbkcold $orog 
 
 echo -ne "Starting comparison script...\r"
 bash ./compare_results.sh
 echo "Starting comparison script... Done."
-
-module load nco
-module load gsl
-#ncrename -O -v t,T ./out.atm.tile1.nc
-#ncdiff -O -v u,v,delp ./out.atm.tile1.nc ./fv_core.res.tile1.nc ./tile1.ncdiff.nc
-exit
-#python compare_results.py
-#ncks -O -v udiff,vdiff,tdiff ./out.atm.tile1.nc ./tile.ncdiff.nc
-#scp tile1_chgres_winds.nc Donald.E.Lippi@dtn-hera.fairmont.rdhpcs.noaa.gov/fv3-cam/Donald.E.Lippi/blending_fv3/fv3jedi/glb-test/C768_test/plotting/.

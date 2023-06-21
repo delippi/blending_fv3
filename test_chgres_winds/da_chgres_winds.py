@@ -9,16 +9,13 @@ import tictoc  # To use, put /u/donald.e.lippi/bin/python in your PYTHONPATH
 
 tic = tictoc.tic()
 
-#warm = str(sys.argv[1])  # ./fv_core.res.tile1.nc
-#cold = str(sys.argv[2])  # ./out.atm.tile1.nc
-#grid = str(sys.argv[3])  # ./C768_grid.tile1.nc
-#akbk = str(sys.argv[4])  # ./fv_core.res.nc
-warm = str("./fv_core.res.tile1.nc")
-cold = str("./out.atm.tile1.nc")
-grid = str("./C768_grid.tile1.nc")
-akbk = str("./fv_core.res.nc")
-akbkcold = str("./gfs_ctrl.nc")
-orog = str("./C768_oro_data.tile1.nc")
+print("Reading in NETCDF4 Files... ",end="\r")
+warm = str(sys.argv[1])
+cold = str(sys.argv[2])
+grid = str(sys.argv[3])
+akbk = str(sys.argv[4])
+akbkcold = str(sys.argv[5])
+orog = str(sys.argv[6])
 
 warmnc = Dataset(warm)
 coldnc = Dataset(cold, mode="a")
@@ -26,13 +23,20 @@ akbknc = Dataset(akbk)
 gridnc = Dataset(grid)
 akbkcoldnc = Dataset(akbkcold)
 orognc = Dataset(orog)
+print("Reading in NETCDF4 Files... Done.")
 
 ColdStartWinds  = True
 VertRemapScalar = True
 VertRemapWinds  = True
 WriteData       = True
 
-top=1; bot=128
+gdas=True
+rrfs=False
+
+if gdas:
+    top=1; bot=128
+if rrfs:
+    top=1; bot=66
 
 # STEP 1. ROTATE THE WINDS FROM CHGRES
 if ColdStartWinds:
@@ -73,44 +77,16 @@ if ColdStartWinds:
     chgres_winds.main(gridx,gridy,u_s,v_s,u_w,v_w,ud,vd)
 
     print("Starting ColdStartWinds.... Done.")
-"""
-What I'm getting:
-x psc(         690 ,         434 )   93558.3046875000                1
-x pe0(         690 ,         129 )   9.42375000953311              129
-x Atm_phis(         690 ,         434 )   6546.52066600342
-x gz(         129 )   6567.47112763062
-x pn(k)   11.4463401004773
-x pst   11.4465860734725
-x zh(i,j,k)   669.695678710938
-x Atm_ps(         690 ,         434 )   93581.3203344323
-x Atm_delp(         690 ,         434 ,         127 )   231.314307602646
-
-
-
-
-Trying to match exactly this:
-x psc(         690 ,         434 )   93558.3046875000                1
-x pe0(         690 ,         129 )   9.42375000953311              129
-x Atm%phis(         690 ,         434 )   6546.52066600342
-x gz(         129 )   6567.47112763062
-x pn(k)   11.4463401004773
-x pst   11.4465860734725
-x zh(i,j,k)   669.695678710938
-x Atm%ps(         690 ,         434 )   93581.3203344323
-x Atm%delp(         690 ,         434 ,         127 )   231.314307602646
-"""
 
 # STEP 2. VERTICAL REMAPPING OF SCALARS
 if VertRemapScalar:
     print("Starting VertRemapScalar... ", end="\r")
 
     # Data from cold restarts: lippi here: npz=127 km=128
-    levp = 128  # (km)
-    npz  = 127
     ak0  = np.float64(akbkcoldnc["vcoord"][0, :])   # ( lev,         ) == (128,         )
     bk0  = np.float64(akbkcoldnc["vcoord"][1, :])   # ( lev,         ) == (128,         )
-    ak   = ak0[1:-1]
-    bk   = bk0[1:-1]
+    ak   = ak0[1:]
+    bk   = bk0[1:]
     #ak   = np.float64(akbknc["ak"][0, :])           # ( lev,         ) == (128,         )
     #bk   = np.float64(akbknc["bk"][0, :])           # ( lev,         ) == (128,         )
     ps   = np.float64(coldnc["ps"][:, :])           # (      lat, lon) == (     768, 768)
@@ -122,6 +98,9 @@ if VertRemapScalar:
     #Atm_phis  = np.float64(orognc["orog_raw"][:,:])*9.80665 # not quite right either.
     Atm_phis  = np.float64(orognc["orog_filt"][:,:])*9.80665 # I think this is the correct phis
 
+    ak0[0] = 1.000000000000000E-009
+    bk0[0] = 1.000000000000000E-009
+
     sphum   = np.float64(coldnc["sphum"][:, :, :]) # ( lev, lat, lon) == (128, 768, 768)
     liq_wat = np.float64(coldnc["liq_wat"][:, :, :])
     o3mr    = np.float64(coldnc["o3mr"][:, :, :])
@@ -131,11 +110,6 @@ if VertRemapScalar:
     graupel = np.float64(coldnc["graupel"][:, :, :])
     ntracers = 7
     qa = np.array([sphum,liq_wat,o3mr,ice_wat,rainwat,snowwat,graupel])
-
-    isrt=1
-    iend=np.shape(t_cold)[1]
-    jsrt=1
-    jend=np.shape(t_cold)[2]
 
     # Fortran wants everything transposed and in fortran array type
     ak   = np.asfortranarray(ak)  # Don't transpose 1D array
@@ -150,9 +124,12 @@ if VertRemapScalar:
     delp_cold = np.asfortranarray(delp_cold.transpose())
     t_cold    = np.asfortranarray(t_cold.transpose())
 
-    # need to put 1.0e-9 as first element in a/bk0
-    #ak0[0] = 1.000000000000000E-009
-    #bk0[0] = 1.000000000000000E-009
+    isrt=1
+    jsrt=1
+    iend=np.shape(t_cold)[0]
+    jend=np.shape(t_cold)[1]
+    npz = np.shape(t_cold)[2]-1
+    levp = npz + 1 # (km)
 
     # Initialize some computed fields to zero
     Atm_delp = 1.0*delp_cold[:, :, top:bot]  # initialize to zero (delp for sfcp)
@@ -160,9 +137,9 @@ if VertRemapScalar:
     Atm_pt   = 1.0*t_cold[: ,:, top:bot]     # initialize to zero (temperature)
     Atm_ps   = 1.0*ps[:,:]                   # initialize to zero (need for remap_dwinds)
 
-    if True:
-        remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
-                          isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
+
+    remap_scalar.main(levp, npz, ntracers, ak0, bk0, ak, bk, ps, qa, zh, omga, t_cold,
+                      isrt, iend, jsrt, jend, Atm_pt, Atm_q, Atm_delp, Atm_phis, Atm_ps)
 
     print("Starting VertRemapScalar... Done.")
 
