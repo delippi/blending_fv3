@@ -22,7 +22,7 @@
  real(kind=8), dimension(:,:),     intent(INOUT) ::  Atm_ps   ! (768, 768)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_delp ! (768, 768, 127)
  real(kind=8), dimension(:,:,:),   intent(INOUT) ::  Atm_pt   ! (768, 768, 127)
- real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 128, 7)
+ real(kind=8), dimension(:,:,:,:), intent(INOUT) ::  Atm_q    ! (768, 768, 127, 7)
  real(kind=8)                                    ::  Atm_ptop
  real(kind=8)                                    ::  pst
  real(kind=8), dimension(2*km+1)                 ::  pn,gz
@@ -143,7 +143,8 @@
 
 ! map tracers
      tracers: do iq=1,1 !ncnst
-        if (floor(qa(is,j,1,iq)) > -999) then !skip missing scalars
+        !if (floor(qa(is,j,1,iq)) > -999) then !skip missing scalars
+        if (floor(qa(is,j,1,iq)) == -1000) cycle !skip missing scalars [floor(-999.99) is -1000]
            do k=1,km
               do i=is,ie
                  qp(i,k) = qa(i,j,k,iq)
@@ -160,7 +161,7 @@
                  Atm_q(i,j,k,iq) = qn1(i,k)
               enddo
            enddo
-        endif
+        !endif
      enddo tracers
 
 !---------------------------------------------------
